@@ -14,34 +14,26 @@
 ###############
 
 # change the language and date formatting to English if it is not already
-Sys.setenv(LANG = "EN")
-Sys.setlocale("LC_TIME", "English") # key, without this conversion to POSIXct does not work
-Sys.getlocale(category = "LC_ALL")
+	Sys.setenv(LANG = "EN")
+	Sys.setlocale("LC_TIME", "English") # key, without this conversion to POSIXct does not work
+	Sys.getlocale(category = "LC_ALL")
 
 
 # set working directory
-#setwd("C:/Users/freche/Dropbox/Data_Paper_DFs")
-#setwd("C:/Users/huwylero/Basel Powi Dropbox/Data_Paper_DFs")
-#setwd("E:/Basel Powi Dropbox/Data_Paper_DFs")
-setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
-
-getwd()
+	#setwd("C:/Users/freche/Dropbox/Data_Paper_DFs")
+	#setwd("C:/Users/huwylero/Basel Powi Dropbox/Data_Paper_DFs")
+	#setwd("E:/Basel Powi Dropbox/Data_Paper_DFs")
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 
 # load libraries
-library(ggplot2)
-library(doParallel)
-library(stringr)
-library(gridExtra)
-library(ggpubr)
-
-#for Sankey Diagram (https://databreadandbutter.wordpress.com/2017/09/25/erster-blogbeitrag/)
-library(googleVis)
-#to reshape data
-library(reshape2)
-
-
-#Use the maximum number of available cores for faster calculations
-registerDoParallel(cores=detectCores()) 
+	library(ggplot2)
+	library(doParallel)
+	library(stringr)
+	library(gridExtra)
+	library(ggpubr)
+	library(googleVis) # for Sankey Diagram (https://databreadandbutter.wordpress.com/2017/09/25/erster-blogbeitrag/)
+	library(reshape2) #to reshape data
+	library(sqldf)
 
 #############
 # Load data #
@@ -49,107 +41,148 @@ registerDoParallel(cores=detectCores())
 
 # Goal: Load the latest version of the Rdata file "Day-By-Day_Paper_DFs_..."
 
-# 1) List all files in the directory
-FILES <- data.frame(list.files(path = "./dfs_for_release/"))
-colnames(FILES)[match("list.files.path......dfs_for_release...",colnames(FILES))] <- "file_names"
+	# 1) List all files in the directory
+		FILES <- data.frame(list.files(path = "./dfs_for_release/"))
+		colnames(FILES)[match("list.files.path......dfs_for_release...",colnames(FILES))] <- "file_names"
 
-# 2) Extract the dates and times from the file names
-FILES$rawdate <- as.character(str_extract_all(FILES$file_names, "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}"))
+	# 2) Extract the dates and times from the file names
+		FILES$rawdate <- as.character(str_extract_all(FILES$file_names, "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}"))
 
-# 3) Order the raw dates with the latest file on the top of the list
-FILES <- FILES[order(FILES$rawdate, decreasing=TRUE),]
-FILES<-FILES[!(FILES$rawdate=="character(0)"),] # Get rid of empty rows
+	# 3) Order the raw dates with the latest file on the top of the list
+		FILES <- FILES[order(FILES$rawdate, decreasing=TRUE),]
+		FILES<-FILES[!(FILES$rawdate=="character(0)"),] # Get rid of empty rows
 
-# 4) Complete file to import with file path
-# filetoimport <- as.character(FILES$file_names[1])
-filetoimport <- paste("./dfs_for_release/", as.character(FILES$file_names[1]), sep = "")
+	# 4) Complete file to import with file path
+		# filetoimport <- as.character(FILES$file_names[1])
+		filetoimport <- paste("./dfs_for_release/", as.character(FILES$file_names[1]), sep = "")
 
-# 5) Load all 12 data frames
-load(filetoimport)
+	# 5) Load all 12 data frames
+		load(filetoimport)
 
-# 6) Remove files used for loading:
-rm(availablefiles, filetoimport, FILES)
+	# 6) Remove files used for loading:
+		rm(availablefiles, filetoimport, FILES)
 
-######### inspect these files now they have been loaded
-	head(PARLDAILY) # so this already contains Oliver his aggregates.
+	######### inspect these files now they have been loaded
+		head(PARLDAILY) # so this already contains Oliver his aggregates.
+
+# also get some of the general PCC data-frames in
+
+		# import and inspect PARL and get the election date into the r-format
+		PARL = read.csv("PCC/PARL.csv", header = TRUE, sep = ";")
+		summary(PARL)
+		names(PARL)
+		PARL$election_date_asdate <- as.Date(as.character(PARL$election_date),format=c("%d%b%Y"))
+		head(PARL)
 
 
 ##########
 # Graphs #
 ##########
 
-##########
+###############################################################################
 # Gender Daily #
 ###############################################################################
-#Split parliament id of Parldaily into components
-ParlNew <- strsplit(as.character(PARLDAILY$parliament_id), "_")
-do.call(rbind, ParlNew)
-PARLDAILY2 <- data.frame(PARLDAILY, do.call(rbind, ParlNew))
-ParlNew2 <- strsplit(as.character(PARLDAILY2$X2), "-")
-do.call(rbind, ParlNew2)
-PARLDAILY_wide <- data.frame(PARLDAILY2, do.call(rbind, ParlNew2))
-colnames(PARLDAILY_wide)[colnames(PARLDAILY_wide)=="X1"] <- "country"
-colnames(PARLDAILY_wide)[colnames(PARLDAILY_wide)=="X3"] <- "year"
-colnames(PARLDAILY_wide)[colnames(PARLDAILY_wide)=="X2.1"] <- "parl"
 
-#split Parldayly into Parliamentbased based dfs
-(parldaily_countries <- split(PARLDAILY_wide, PARLDAILY_wide$country))
-PARLDAILY_CH<-data.frame(parldaily_countries$CH)
-dfCH <- split(PARLDAILY_CH, PARLDAILY_CH$parl)
-PARLDAILY_CHSR<-data.frame(dfCH$SR)
-PARLDAILY_CHNR<-data.frame(dfCH$NR)
-PARLDAILY_DE<-data.frame(parldaily_countries$DE)
-PARLDAILY_NL<-data.frame(parldaily_countries$NL)
+	# merge the election date in (we need this below in the graphs)
+	
+		PARLDAILY$parliament_id <- as.character(PARLDAILY$parliament_id)
+		PARLDAILY <- sqldf("SELECT PARLDAILY.*, PARL.election_date_asdate
+						   FROM PARLDAILY LEFT JOIN PARL
+						   WHERE PARLDAILY.parliament_id = PARL.parliament_id
+						  ")
 
-# convert CH data to long format
-#PARLDAILY_CH_long <- melt(PARLDAILY_CH, id="day")  
+#Split parliament id of Parldaily into components # #note to Elena/Oliver, this bit needs cleaning up / comments it is rather unclear at the moment what is exactly happening here
 
-vline.data <- data.frame(CH = c(1966-01-13, 1970-01-13, 1980-01-13, 1990-01-13), DE = c(1968-01-13, 1972-01-13, 1982-01-13, 1992-01-13), NL = c(1968-01-13, 1972-01-13, 1982-01-13, 1992-01-13))
+	ParlNew <- strsplit(as.character(PARLDAILY$parliament_id), "_")
+#	do.call(rbind, ParlNew)
+	PARLDAILY2 <- data.frame(PARLDAILY, do.call(rbind, ParlNew))
+	ParlNew2 <- strsplit(as.character(PARLDAILY2$X2), "-")
+#	do.call(rbind, ParlNew2)
+	PARLDAILY_wide <- data.frame(PARLDAILY2, do.call(rbind, ParlNew2))
+	colnames(PARLDAILY_wide)[colnames(PARLDAILY_wide)=="X1"] <- "country"
+	colnames(PARLDAILY_wide)[colnames(PARLDAILY_wide)=="X3"] <- "year"
+	colnames(PARLDAILY_wide)[colnames(PARLDAILY_wide)=="X2.1"] <- "parl"
 
+#split Parldayly into country / house (for CH) based dfs
+	PARLDAILY_countries <- split(PARLDAILY_wide, PARLDAILY_wide$country)
+	PARLDAILY_CH<-data.frame(PARLDAILY_countries$CH)
+	dfCH <- split(PARLDAILY_CH, PARLDAILY_CH$parl)
+	
+	PARLDAILY_CHSR<-data.frame(dfCH$SR)
+	PARLDAILY_CHNR<-data.frame(dfCH$NR)
+	PARLDAILY_DE<-data.frame(PARLDAILY_countries$DE)
+	PARLDAILY_NL<-data.frame(PARLDAILY_countries$NL)
+	
+	head(PARLDAILY_DE) 
+	
+# some country specific inspections
 
-#now do 3 graphs, one for each Parliament
-#DE
-genderdaily_DE <- ggplot(NULL) +
-  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender)) +
-  xlab("German Bundestag Day by Day") +
-  ylab("% Women")+
-theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  ylim(0.0,0.45) #+
-  #xlim(1949, 2017) 
- # geom_vline(aes(xintercept = 1960-01-13))
-#annotate("segment", x=0, xend=1,y=0, yend=1)  #black
+	# time range?
+	range(PARLDAILY_CHSR$day)
+	range(PARLDAILY_CHNR$day)
+	range(PARLDAILY_DE$day)
+	range(PARLDAILY_NL$day)
+	
+	## #discuss with Oliver: any idea why the time-ranges might differ between countries. Shall we make this consistent (for the comparability of the graphs) ##
+
+## so Elena did not yet implement to script to get the proper vertical lines
+
+#now do 3 graphs, using ggplot, one for each Parliament
+	
+	# this data is needed to get the vertical lines in
+		UNI <- as.data.frame(unique(PARLDAILY_DE$election_date_asdate))
+		colnames(UNI) <- "election_date_asdate"	
+	
+	#DE
+	genderdaily_DE <- 
+	
+	ggplot(NULL) +
+	  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender)) +
+	  xlab("German Bundestag Day by Day") +
+	  ylab("% Women")+
+	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+	  ylim(0.0,0.45) + 
+	  geom_vline(aes(xintercept=UNI$election_date_asdate), linetype=4, colour="black")
+	#annotate("segment", x=0, xend=1,y=0, yend=1)  #black
 
 #NL
-genderdaily_NL <- ggplot(NULL,
-                         aes(x=day, y=gender)) +
-  geom_line(data=PARLDAILY_NL) +
-xlab("Dutch Tweede Kamer Day by Day") +
-ylab("% Women")+
-theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  ylim(0.0,0.45)#+
-  #xlim(1949, 2017) #+
-  #geom_vline(aes(xintercept = NL), vline.data)
+	genderdaily_NL <- ggplot(NULL,
+							 aes(x=day, y=gender)) +
+	  geom_line(data=PARLDAILY_NL) +
+	xlab("Dutch Tweede Kamer Day by Day") +
+	ylab("% Women")+
+	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+	  ylim(0.0,0.45)#+
+	  #xlim(1949, 2017) #+
+	  #geom_vline(aes(xintercept = NL), vline.data)
 
 
 #CH
-genderdaily_CH <- ggplot(NULL, aes(x=day, y=gender)) +
-     #geom_line(data = PARLDAILY_CHSR, color= "darkgrey") +
-     geom_line(data = PARLDAILY_CHNR, color = "black") +
-  xlab("Swiss Nationalrat Day by Day") +
-  ylab("% Women") +
-theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  ylim(0.0,0.45)#+
-  #xlim(0, 1) #+
-  #geom_vline(aes(xintercept = CH), vline.data)
-#scale_colour_manual("", values = c("red", "green")) 
-#scale_color_manual(values = c('Y1' = 'darkblue', 'Y2' = 'red')) +
-  #labs(color = 'Y series')
+	genderdaily_CH <- ggplot(NULL, aes(x=day, y=gender)) +
+		 #geom_line(data = PARLDAILY_CHSR, color= "darkgrey") +
+		 geom_line(data = PARLDAILY_CHNR, color = "black") +
+	  xlab("Swiss Nationalrat Day by Day") +
+	  ylab("% Women") +
+	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+	  ylim(0.0,0.45)#+
+	  #xlim(0, 1) #+
+	  #geom_vline(aes(xintercept = CH), vline.data)
+	#scale_colour_manual("", values = c("red", "green")) 
+	#scale_color_manual(values = c('Y1' = 'darkblue', 'Y2' = 'red')) +
+	  #labs(color = 'Y series')
 
 #put all together and save
-#ggarrange(genderdaily_DE, genderdaily_NL, genderdaily_CH, ncol=1, nrow = 3, common.legend = TRUE, legend="right")
-#pdf("/Users/freche/Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper/GenderDayly4.pdf") 
- grid.arrange(genderdaily_DE, genderdaily_NL, genderdaily_CH, nrow = 3)
- #dev.off() 
+
+	#ggarrange(genderdaily_DE, genderdaily_NL, genderdaily_CH, ncol=1, nrow = 3, common.legend = TRUE, legend="right")
+	#pdf("/Users/freche/Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper/GenderDayly4.pdf") 
+	 grid.arrange(genderdaily_DE, genderdaily_NL, genderdaily_CH, nrow = 3)
+	 #dev.off() 
+
+
+
+
+
+
 
  ##########
  # Age per year #
