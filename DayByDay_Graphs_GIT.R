@@ -74,6 +74,42 @@
 		PARL$election_date_asdate <- as.Date(as.character(PARL$election_date),format=c("%d%b%Y"))
 		head(PARL)
 
+# and the % of women in parliament data from IPU / worldbank
+
+	# "Data Source","World Development Indicators" / "Last Updated Date","2019-04-24",
+	# resources here (https://data.worldbank.org/indicator/SG.GEN.PARL.ZS?locations=DE-NL-CH) say " General cut off date is end-December."
+	
+	# Import
+		IPU = read.csv("API_SG.GEN.PARL.ZS_DS2_en_csv_v2_10576742.csv", header = TRUE, sep = ",")
+		head(IPU)
+		table(IPU$Country.Code)
+		IPU <- IPU[which(IPU$Country.Code == "CHE"|IPU$Country.Code == "DEU"|IPU$Country.Code == "NLD"),]
+		head(IPU)
+	
+	#lets melt this data
+		TEMP <- melt(IPU)
+		IPU_M <- cbind.data.frame(TEMP$Country.Code,TEMP$variable,TEMP$value)
+		colnames(IPU_M) <- c("country","year","value")
+		head(IPU_M)
+		
+	# and get a proper time-stamp in
+		
+		# a function that I will use for this
+			substrRight <- function(x, n)
+				{
+					substr(x, nchar(x)-n+1, nchar(x))
+				}
+	
+		# putting it all together
+			IPU_M$rformateddate <- as.Date(paste(substrRight(as.character(IPU_M$year),4),"-12-31",sep=""),origin="1970-01-01")
+		
+		# transforming the percentage to scale we use
+			IPU_M$propwomen <- IPU_M$value / 100
+		
+		# and country specif datasets
+		IPU_CH <- IPU_M[which(IPU_M$country == "CHE"),]
+		IPU_DE <- IPU_M[which(IPU_M$country == "DEU"),]
+		IPU_NL <- IPU_M[which(IPU_M$country == "NLD"),]
 
 ##########
 # Graphs #
@@ -123,6 +159,22 @@
 	range(PARLDAILY_DE$day)
 	range(PARLDAILY_NL$day)
 	
+	# seat numbers?
+	table(PARLDAILY_CHNR$seats)
+	table(PARLDAILY_DE$seats)
+	table(PARLDAILY_NL$seats)
+	
+	ggplot(NULL) +
+		  geom_line(data=PARLDAILY_NL, aes(x=day, y=seats))
+		  
+	# you have also checked missingness on the gender data in POLI for Dutch MPS in other scripts ('control' and oliver' script.. this all looks good).
+	
+	# so according to the ipu data on the 15th of March 2017 there should be 54 women in the Dutch parliament and 150 members
+	PARLDAILY_NL[which(PARLDAILY_NL$day == as.Date("2017-03-15",origin="1970-01-01")),]
+	PARLDAILY_NL[which(PARLDAILY_NL$day == as.Date("2017-03-15",origin="1970-01-01")),]$gender * 150 # occurding to our data there where 58.
+	
+	
+	
 	## #discuss with Oliver: any idea why the time-ranges might differ between countries. Shall we make this consistent (for the comparability of the graphs) ##
 
 ## so Elena did not yet implement to script to get the proper vertical lines
@@ -141,6 +193,10 @@
 		
 		UNI_NL <- as.data.frame(unique(PARLDAILY_NL$election_date_asdate))
 		colnames(UNI_NL) <- "election_date_asdate"	
+	
+	# these are the 'matching vectors' from the IPU data
+		min(which(names(IPU) == "X1960"))
+		max(which(names(IPU) == "X1960"))
 
 	
 	# some vectors with ranges e.t.c. that can be used in all the graphs, done here centrally to force consistency between the graphs
@@ -165,6 +221,7 @@
 	# genderdaily_CH <-
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=gender)) +
+		  geom_point(data=IPU_CH, aes(x=rformateddate, y=propwomen),color="green") +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
@@ -176,6 +233,7 @@
 	#genderdaily_DE <- 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender)) +
+		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),color="green") +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
@@ -187,6 +245,7 @@
 	# genderdaily_NL 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender)) +
+		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),color="green") +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
