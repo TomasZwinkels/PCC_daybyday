@@ -130,46 +130,68 @@
 #now do 3 graphs, using ggplot, one for each Parliament
 	
 	# this data is needed to get the vertical lines in
-		UNI <- as.data.frame(unique(PARLDAILY_DE$election_date_asdate))
-		colnames(UNI) <- "election_date_asdate"	
+		UNI_CHSR <- as.data.frame(unique(PARLDAILY_CHSR$election_date_asdate))
+		colnames(UNI_DE) <- "election_date_asdate"	
+		
+		UNI_CHNR <- as.data.frame(unique(PARLDAILY_CHNR$election_date_asdate))
+		colnames(UNI_CHNR) <- "election_date_asdate"	
+		
+		UNI_DE <- as.data.frame(unique(PARLDAILY_DE$election_date_asdate))
+		colnames(UNI_DE) <- "election_date_asdate"	
+		
+		UNI_NL <- as.data.frame(unique(PARLDAILY_NL$election_date_asdate))
+		colnames(UNI_NL) <- "election_date_asdate"	
+
+	
+	# some vectors with ranges e.t.c. that can be used in all the graphs, done here centrally to force consistency between the graphs
+	yname <- c("% Women")
+	ybreaks <- c(0,0.1,0.2,0.3,0.4,0.5)
+	ylabels <- c(0,10,20,30,40,50)
+	yrange <- c(0,0.5)
+		
+	xrange <- c(as.Date("1950-01-01",origin="1970-01-01"),as.Date("2016-12-31",origin="1970-01-01"))
+	
+	# the breaks and labels depend on when the elections are
+		xbreaks_CHNR <- UNI_CHNR$election_date_asdate
+		xlabels_CHNR <- substr(as.character(UNI_CHNR$election_date_asdate),0,4)
+		
+		xbreaks_DE <- UNI_DE$election_date_asdate
+		xlabels_DE <- substr(as.character(UNI_DE$election_date_asdate),0,4)
+		
+		xbreaks_NL <- UNI_NL$election_date_asdate
+		xlabels_NL <- substr(as.character(UNI_NL$election_date_asdate),0,4)
+	
+	#CH
+	# genderdaily_CH <-
+		ggplot(NULL) +
+		  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=gender)) +
+		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
+		  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+		  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
+		  theme_grey(base_size = 15) +
+		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 	
 	#DE
-	genderdaily_DE <- 
-	
-	ggplot(NULL) +
-	  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender)) +
-	  xlab("German Bundestag Day by Day") +
-	  ylab("% Women")+
-	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-	  ylim(0.0,0.45) + 
-	  geom_vline(aes(xintercept=UNI$election_date_asdate), linetype=4, colour="black")
-	#annotate("segment", x=0, xend=1,y=0, yend=1)  #black
+	#genderdaily_DE <- 
+		ggplot(NULL) +
+		  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender)) +
+		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
+		  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
+		  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
+		  theme_grey(base_size = 15) +
+		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+	  
 
-#NL
-	genderdaily_NL <- ggplot(NULL,
-							 aes(x=day, y=gender)) +
-	  geom_line(data=PARLDAILY_NL) +
-	xlab("Dutch Tweede Kamer Day by Day") +
-	ylab("% Women")+
-	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-	  ylim(0.0,0.45)#+
-	  #xlim(1949, 2017) #+
-	  #geom_vline(aes(xintercept = NL), vline.data)
-
-
-#CH
-	genderdaily_CH <- ggplot(NULL, aes(x=day, y=gender)) +
-		 #geom_line(data = PARLDAILY_CHSR, color= "darkgrey") +
-		 geom_line(data = PARLDAILY_CHNR, color = "black") +
-	  xlab("Swiss Nationalrat Day by Day") +
-	  ylab("% Women") +
-	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-	  ylim(0.0,0.45)#+
-	  #xlim(0, 1) #+
-	  #geom_vline(aes(xintercept = CH), vline.data)
-	#scale_colour_manual("", values = c("red", "green")) 
-	#scale_color_manual(values = c('Y1' = 'darkblue', 'Y2' = 'red')) +
-	  #labs(color = 'Y series')
+	#NL
+	# genderdaily_NL 
+		ggplot(NULL) +
+		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender)) +
+		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
+		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
+		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
+		  theme_grey(base_size = 15) +
+		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 #put all together and save
 
