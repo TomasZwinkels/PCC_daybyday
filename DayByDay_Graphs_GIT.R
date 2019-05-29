@@ -245,7 +245,7 @@
 	# genderdaily_NL 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender)) +
-		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),color="green") +
+		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),color="green") +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
