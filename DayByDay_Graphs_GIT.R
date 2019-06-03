@@ -423,18 +423,22 @@ dev.off()
 			# step 1.3. get a dummy to check if both of these cases occured as well, 
 			# also count preassesor parties as a valid occurence
 			
+			pb <- txtProgressBar(min = 1, max = nrow(PARTDAILY), style = 3)
+			resvec <- vector()
+			for(i in 1:nrow(PARTDAILY))
+			{
 				# for example, the very first rows
-				PARTDAILY[which(PARTDAILY$party_id_national == "NL_CDA_NT" & PARTDAILY$parliament_id == "NL_NT-TK_1981"),]
-				PARTDAILY[518585,]
-				mypreviousparliament <- PARTDAILY$previous_parliament[518585]
-				mypreviouspreviousparliament <- PARTDAILY$previous_previous_parliament[518585]
-				myparty = PARTDAILY$party_id_national[518585]
+				# PARTDAILY[which(PARTDAILY$party_id_national == "NL_CDA_NT" & PARTDAILY$parliament_id == "NL_NT-TK_1981"),]
+				# PARTDAILY[518585,]
+				mypreviousparliament <- PARTDAILY$previous_parliament[i]
+				mypreviouspreviousparliament <- PARTDAILY$previous_previous_parliament[i]
+				myparty = PARTDAILY$party_id_national[i]
 				
 				# ancestor parties
 				myancestorpartyarray <- as.vector(strsplit(PARTDAILY$ancestor_party_id[518585],";"))[[1]]
 				
-				# how many columns do I need?
-					maxancesarraylength <- as.numeric(max(names(table(c)))) # currently 3, lets make it work until 5
+				# splitting this array so check can done on each element below
+					# maxancesarraylength <- as.numeric(max(names(table(c)))) #how many columns do I need?  currently 3, lets make it work until 5
 					ancestor_1 <- myancestorpartyarray[1]
 					ancestor_2 <- myancestorpartyarray[2]
 					ancestor_3 <- myancestorpartyarray[3]
@@ -482,8 +486,11 @@ dev.off()
 				
 				# now, am I established?
 					iamestablised <- ifelse((seatinpreviouspar | seatinpreviouspreviouspar | hit1a | hit2a | hit3a | hit4a | hit5a | hit1b | hit2b | hit3b | hit4b | hit5b),TRUE,FALSE)
-
-
+				
+				resvec[i] <- iamestablised
+				setTxtProgressBar(pb, i)
+				}
+				close(PB)
 
 ###############################a
 # tenure, elena's old script #
