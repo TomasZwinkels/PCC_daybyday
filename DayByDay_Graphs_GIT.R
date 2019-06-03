@@ -423,19 +423,28 @@ dev.off()
 			# step 1.3. get a dummy to check if both of these cases occured as well, 
 			# also count preassesor parties as a valid occurence
 			
-			pb <- txtProgressBar(min = 1, max = nrow(PARTDAILY), style = 3)
+				# lets get reduced data-frame to do this on to save time
+				PARTDAILY$party_and_parliament <- paste(PARTDAILY$party_id_national, PARTDAILY$parliament_id,sep="__")
+				table(PARTDAILY$party_and_parliament)
+				duplicated(PARTDAILY$party_and_parliament)
+				
+				PDRED <- PARTDAILY[which(!duplicated(PARTDAILY$party_and_parliament)),]
+				nrow(PDRED)
+			
+			pb <- txtProgressBar(min = 1, max = nrow(PDRED), style = 3)
+
 			resvec <- vector()
-			for(i in 1:nrow(PARTDAILY))
+			for(i in 1:nrow(PDRED))
 			{
 				# for example, the very first rows
 				# PARTDAILY[which(PARTDAILY$party_id_national == "NL_CDA_NT" & PARTDAILY$parliament_id == "NL_NT-TK_1981"),]
 				# PARTDAILY[518585,]
-				mypreviousparliament <- PARTDAILY$previous_parliament[i]
-				mypreviouspreviousparliament <- PARTDAILY$previous_previous_parliament[i]
-				myparty = PARTDAILY$party_id_national[i]
+				mypreviousparliament <- PDRED$previous_parliament[i]
+				mypreviouspreviousparliament <- PDRED$previous_previous_parliament[i]
+				myparty = PDRED$party_id_national[i]
 				
 				# ancestor parties
-				myancestorpartyarray <- as.vector(strsplit(PARTDAILY$ancestor_party_id[518585],";"))[[1]]
+				myancestorpartyarray <- as.vector(strsplit(PDRED$ancestor_party_id[i],";"))[[1]]
 				
 				# splitting this array so check can done on each element below
 					# maxancesarraylength <- as.numeric(max(names(table(c)))) #how many columns do I need?  currently 3, lets make it work until 5
@@ -485,12 +494,20 @@ dev.off()
 					hit5b <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_5),]) > 0
 				
 				# now, am I established?
-					iamestablised <- ifelse((seatinpreviouspar | seatinpreviouspreviouspar | hit1a | hit2a | hit3a | hit4a | hit5a | hit1b | hit2b | hit3b | hit4b | hit5b),TRUE,FALSE)
+					iamestablised <- ifelse(((seatinpreviouspar & seatinpreviouspreviouspar) | (hit1a & hit1b) | (hit2a & hit2b) | (hit3a & hit3b) | (hit4a & hit4b) | (hit5a & hit5b) | (seatinpreviouspar & hit1b) | (seatinpreviouspar & hit2b) | (seatinpreviouspar & hit3b) | (seatinpreviouspar & hit4b) |(seatinpreviouspar & hit5b)),TRUE,FALSE) # set at the end if because it is possible that your most recent parliament you had a seat and the one before was one of your ancestor parties, around transition years
 				
 				resvec[i] <- iamestablised
 				setTxtProgressBar(pb, i)
 				}
-				close(PB)
+				close(pb)
+				PDRED$iamestablised <- resvec
+				table(PDRED$iamestablised) # in general this looks  very good
+				
+				# merge the conclusions back in
+				TEMP5 <- sqldf("SELECT PARTDAILY.* 
+				
+				
+								")
 
 ###############################a
 # tenure, elena's old script #
