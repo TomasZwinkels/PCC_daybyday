@@ -402,10 +402,15 @@ dev.off()
 			# step 1.3 get a party its pre-assesor parties
 			
 				# for the we need PART to be loaded as well
-				# import and inspect PARL and get the election date into the r-format
-				PART = read.csv("PCC/PART.csv", header = TRUE, sep = ";")
-				summary(PART)
-				names(PART)
+				
+					# import and inspect PARL and get the election date into the r-format
+					PART = read.csv("PCC/PART.csv", header = TRUE, sep = ";")
+					summary(PART)
+					names(PART)
+					table(PART$ancestor_party_id == "")
+					PART$ancestor_party_id <- ifelse(nchar(as.character(PART$ancestor_party_id)) == 0,NA,as.character(PART$ancestor_party_id)) # to avoid issues with matches on empty cells
+					table(PART$ancestor_party_id)
+					head(PART)
 			
 				TEMP3 <- sqldf("SELECT PARTDAILY.*, PART.ancestor_party_id
 								FROM PARTDAILY LEFT JOIN PART
@@ -413,11 +418,74 @@ dev.off()
 								PARTDAILY.party_id_national = PART.party_id
 							")
 				nrow(TEMP3)
+				PARTDAILY <- TEMP3
 			
-			# step 1.3. get a dummy to check if both of these cases occured as well, also count preassesor parties as a valid occurence
+			# step 1.3. get a dummy to check if both of these cases occured as well, 
+			# also count preassesor parties as a valid occurence
 			
+				# for example, the very first rows
+				PARTDAILY[which(PARTDAILY$party_id_national == "NL_CDA_NT" & PARTDAILY$parliament_id == "NL_NT-TK_1981"),]
+				PARTDAILY[518585,]
+				mypreviousparliament <- PARTDAILY$previous_parliament[518585]
+				mypreviouspreviousparliament <- PARTDAILY$previous_previous_parliament[518585]
+				myparty = PARTDAILY$party_id_national[518585]
+				
+				# ancestor parties
+				myancestorpartyarray <- as.vector(strsplit(PARTDAILY$ancestor_party_id[518585],";"))[[1]]
+				
+				# how many columns do I need?
+					maxancesarraylength <- as.numeric(max(names(table(c)))) # currently 3, lets make it work until 5
+					ancestor_1 <- myancestorpartyarray[1]
+					ancestor_2 <- myancestorpartyarray[2]
+					ancestor_3 <- myancestorpartyarray[3]
+					ancestor_4 <- myancestorpartyarray[4]
+					ancestor_5 <- myancestorpartyarray[5]
+				
+				# all booleans by default false
+					
+					iamestablised <- FALSE
+				
+					seatinpreviouspar <- FALSE
+					seatinpreviouspreviouspar <- FALSE
+					seatinpreviousparpreass <- FALSE
+					seatinpreviouspreviousparpreass <- FALSE
+					hit1a = FALSE
+					hit2a = FALSE
+					hit3a = FALSE
+					hit4a = FALSE
+					hit5a = FALSE
+					
+					hit1b = FALSE
+					hit2b = FALSE
+					hit3b = FALSE
+					hit4b = FALSE
+					hit5b = FALSE
+				
+				# did your party have a seat in the previous parliament?
+					seatinpreviouspar = nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviousparliament & PARTDAILY$party_id_national == myparty),]) > 0
 
-###############################
+				# and the one before that?
+					seatinpreviouspreviouspar = nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == myparty),]) > 0
+
+				# maybe one of your ancestor parties? # this looks promissing
+					hit1a <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_1),]) > 0
+					hit2a <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_2),]) > 0
+					hit3a <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_3),]) > 0
+					hit4a <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_4),]) > 0
+					hit5a <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_5),]) > 0
+				
+					hit1b <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_1),]) > 0
+					hit2b <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_2),]) > 0
+					hit3b <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_3),]) > 0
+					hit4b <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_4),]) > 0
+					hit5b <- nrow(PARTDAILY[which(PARTDAILY$parliament_id == mypreviouspreviousparliament & PARTDAILY$party_id_national == ancestor_5),]) > 0
+				
+				# now, am I established?
+					iamestablised <- ifelse((seatinpreviouspar | seatinpreviouspreviouspar | hit1a | hit2a | hit3a | hit4a | hit5a | hit1b | hit2b | hit3b | hit4b | hit5b),TRUE,FALSE)
+
+
+
+###############################a
 # tenure, elena's old script #
 ###############################
 
