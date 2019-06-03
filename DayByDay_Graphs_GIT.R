@@ -64,7 +64,23 @@
 
 	######### inspect these files now they have been loaded
 		head(PARLDAILY) # so this already contains Oliver his aggregates.
-
+		
+		
+		# Tomas: I am going to play with PART aggregated data a bit, so some inspections here
+			head(PARTDAILY)
+			
+			PARLDAILY[which(PARLDAILY$day == as.Date("1995-12-04",origin="1970-01-01")),]
+			PARTDAILY[which(PARTDAILY$day == as.Date("1995-12-04",origin="1970-01-01")),]
+			
+			# alright, lets check out what the seat distribution looks like
+			table(is.na(PARTDAILY$seats))
+			table(PARTDAILY$seats)
+			hist(PARTDAILY$seats)
+			# so, where do all these 'single seat' parties come from?
+			table(PARTDAILY[which(PARTDAILY$seats == 1),]$party_id) # for the cases I know this looks legitimate? 
+			# Although. PvdA is here as well?
+			PARTDAILY[which(PARTDAILY$seats == 1 & PARTDAILY$party_id == "NL_PVV_NT"),] # this is one person in 1945, so not relevant over our general observation period
+			
 # also get some of the general PCC data-frames in
 
 		# import and inspect PARL and get the election date into the r-format
@@ -72,7 +88,12 @@
 		summary(PARL)
 		names(PARL)
 		PARL$election_date_asdate <- as.Date(as.character(PARL$election_date),format=c("%d%b%Y"))
+		PARL$leg_period_start_asdate <- as.Date(as.character(PARL$leg_period_start),format=c("%d%b%Y"))
+		PARL$leg_period_end_asdate <- as.Date(as.character(PARL$leg_period_end),format=c("%d%b%Y"))
 		head(PARL)
+		
+		# and reduce to only the national parliament to avoid mistakes
+		PARL <- PARL[which(PARL$level == "NT"),]
 
 # and the % of women in parliament data from IPU / worldbank
 
@@ -164,9 +185,12 @@
 	table(PARLDAILY_DE$seats)
 	table(PARLDAILY_NL$seats)
 	
-	ggplot(NULL) +
-		  geom_line(data=PARLDAILY_NL, aes(x=day, y=seats))
-		  
+	ggplot(NULL) +  geom_line(data=PARLDAILY_NL, aes(x=day, y=seats))
+	ggplot(NULL) +  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=seats))
+	ggplot(NULL) +  geom_line(data=PARLDAILY_DE, aes(x=day, y=seats))
+
+
+
 	# you have also checked missingness on the gender data in POLI for Dutch MPS in other scripts ('control' and oliver' script.. this all looks good).
 	
 	# so according to the ipu data on the 15th of March 2017 there should be 54 women in the Dutch parliament and 150 members
@@ -265,7 +289,7 @@
 
 
 
- ##########
+ ###############################################################################################################
  # Age per year #
  ###############################################################################################################
  #Split parliament id of Parldaily into components
@@ -331,9 +355,73 @@ ageyearly_NL <- ggplot(NULL,
 grid.arrange(ageyearly_DE, ageyearly_NL, ageyearly_CH, nrow = 3)
 dev.off() 
 
-##########
-# tenure by term #
-#########################################################################################################Ñ
+#########################################################################################################
+# TENURE, disaggregated on the party level #
+#########################################################################################################
+
+	#### so, for this Oliver his PARTDAILY data-frame can be used
+	
+		## step 1: define what parties are 'established' when. 
+			# So, lets start with simply saying that a party is established when it had seats in the last two parliaments. 
+			# This can be checked on basis of PARTDAILY itself?
+		
+			# step 1.1 get a country variable
+				PARTDAILY$country_abb <- substr(PARTDAILY$party_id_national,0,2)
+				table(PARTDAILY$country_abb)
+			
+			# step 1.1 get the national parliament on basis of the date
+				nrow(PARTDAILY)
+				TEMP <- sqldf("SELECT PARTDAILY.*, PARL.parliament_id, PARL.previous_parliament 
+							  FROM PARTDAILY LEFT JOIN PARL
+							  ON 
+								(
+									(PARTDAILY.country_abb = PARL.country_abb)
+									AND
+									(PARTDAILY.day >= PARL.leg_period_start_asdate)
+									AND
+									(PARTDAILY.day <= PARL.leg_period_end_asdate)
+									AND
+									PARL.level LIKE 'NT'
+								)
+							  ")
+				nrow(TEMP)
+				PARTDAILY <- TEMP
+			
+			# step 1.2 get also the previous, previous parliament
+				TEMP2 <- sqldf("SELECT PARTDAILY.*, PARL.previous_parliament  as 'previous_previous_parliament'
+							  FROM PARTDAILY LEFT JOIN PARL
+							  ON 
+								(
+									PARTDAILY.previous_parliament = PARL.parliament_id
+								)
+							  ")
+				nrow(TEMP2) # couple of cases are dropped because not all parliaments have previous, previous parliaments?
+				head(TEMP2)
+				PARTDAILY <- TEMP2
+							
+			# step 1.3 get a party its pre-assesor parties
+			
+				# for the we need PART to be loaded as well
+				# import and inspect PARL and get the election date into the r-format
+				PART = read.csv("PCC/PART.csv", header = TRUE, sep = ";")
+				summary(PART)
+				names(PART)
+			
+				TEMP3 <- sqldf("SELECT PARTDAILY.*, PART.ancestor_party_id
+								FROM PARTDAILY LEFT JOIN PART
+								ON
+								PARTDAILY.party_id_national = PART.party_id
+							")
+				nrow(TEMP3)
+			
+			# step 1.3. get a dummy to check if both of these cases occured as well, also count preassesor parties as a valid occurence
+			
+
+###############################
+# tenure, elena's old script #
+###############################
+
+
 #Split parliament id of Parldaily into components
 ParlNewT <- strsplit(as.character(PARLTERM$parliament_id), "_")
 do.call(rbind, ParlNewT)
