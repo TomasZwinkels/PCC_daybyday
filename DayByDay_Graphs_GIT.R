@@ -501,14 +501,52 @@ dev.off()
 				}
 				close(pb)
 				PDRED$iamestablised <- resvec
-				table(PDRED$iamestablised) # in general this looks  very good
+				table(PDRED$iamestablised) # in general this looks very good
 				
 				# merge the conclusions back in
-				TEMP5 <- sqldf("SELECT PARTDAILY.* 
-				
-				
+				nrow(PARTDAILY)
+				TEMP5 <- sqldf("SELECT PARTDAILY.*, PDRED.iamestablised
+								FROM PARTDAILY LEFT JOIN PDRED
+								ON
+								(PARTDAILY.party_id_national = PDRED.party_id_national)
+								AND
+								(PARTDAILY.parliament_id = PDRED.parliament_id)
 								")
+				nrow(TEMP5)
+				head(TEMP5)
+				PARTDAILY <- TEMP5
+				table(PARTDAILY$iamestablised)
+		
+		# step 2: aggregate to the parliament level - with a weighted average (on seats!) - and distinquish between establised and none established parties
+		
+			weighted.mean(c(1,1,2,2),c(1,1,1,10000000))
+			
+			# just checking a vector with all days
+				uniquedaysvec <- unique(PARTDAILY$day)
+				length(table(PARTDAILY$day))
+				length(uniquedaysvec)
+				min(PARTDAILY$day)
+				max(PARTDAILY$day)
+				max(PARTDAILY$day) - min(PARTDAILY$day) # looks good
 
+			# get an array with all the unique days per country
+				PARTDAILY$daycountry <- paste(PARTDAILY$day,PARTDAILY$country_abb,sep="__")		
+				length(table(PARTDAILY$daycountry))
+				uniquedaycountryvec <- unique(PARTDAILY$daycountry)
+				length(uniquedaycountryvec)
+				head(uniquedaycountryvec)
+			
+			# get the mean for one day
+			MEANDAT <- PARTDAILY[which(PARTDAILY$daycountry == uniquedaycountryvec[1]),]
+			weighted.mean(c(MEANDAT$tenure),c(MEANDAT$seats))
+			
+			# checking this
+			head(PARLDAILY)
+			PARLDAILY$country_abb <- substr(as.character(PARLDAILY$parliament_id),0,2)
+			table(PARLDAILY$country_abb)
+			PARLDAILY[which(PARLDAILY$country_abb == "CH" & PARLDAILY$day == as.Date("1995-12-04",origin="1970-01-01")),] # not exactly the same number!
+			
+				
 ###############################a
 # tenure, elena's old script #
 ###############################
