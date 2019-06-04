@@ -685,6 +685,7 @@ dev.off()
 				
 				# CH
 					ggplot(NULL) +
+					  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="from parldaily"))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all"))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties"))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties")) +
@@ -693,8 +694,9 @@ dev.off()
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-				# DE
+				# DE # for Germany the line match with PARLDAILY is bang on!
 					ggplot(NULL) +
+					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,color="from parldaily"))  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all"))  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties"))  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties")) +
@@ -705,6 +707,7 @@ dev.off()
 				
 				# NL
 					ggplot(NULL) +
+					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily"))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all"))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties"))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
