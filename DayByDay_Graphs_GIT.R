@@ -432,7 +432,6 @@ dev.off()
 				nrow(PDRED)
 			
 			pb <- txtProgressBar(min = 1, max = nrow(PDRED), style = 3)
-
 			resvec <- vector()
 			for(i in 1:nrow(PDRED))
 			{
@@ -519,33 +518,200 @@ dev.off()
 		
 		# step 2: aggregate to the parliament level - with a weighted average (on seats!) - and distinquish between establised and none established parties
 		
-			weighted.mean(c(1,1,2,2),c(1,1,1,10000000))
-			
-			# just checking a vector with all days
-				uniquedaysvec <- unique(PARTDAILY$day)
-				length(table(PARTDAILY$day))
-				length(uniquedaysvec)
-				min(PARTDAILY$day)
-				max(PARTDAILY$day)
-				max(PARTDAILY$day) - min(PARTDAILY$day) # looks good
+				# just checking a vector with all days
+					uniquedaysvec <- unique(PARTDAILY$day)
+					length(table(PARTDAILY$day))
+					length(uniquedaysvec)
+					min(PARTDAILY$day)
+					max(PARTDAILY$day)
+					max(PARTDAILY$day) - min(PARTDAILY$day) # looks good
 
-			# get an array with all the unique days per country
-				PARTDAILY$daycountry <- paste(PARTDAILY$day,PARTDAILY$country_abb,sep="__")		
-				length(table(PARTDAILY$daycountry))
-				uniquedaycountryvec <- unique(PARTDAILY$daycountry)
+			# get an array with all the unique days per country (is also needed for the loop below!)
+					PARTDAILY$daycountry <- paste(PARTDAILY$day,PARTDAILY$country_abb,sep="__")		
+					length(table(PARTDAILY$daycountry))
+					uniquedaycountryvec <- unique(PARTDAILY$daycountry)
+					length(uniquedaycountryvec)
+					head(uniquedaycountryvec)
+			
+			# example
+				weighted.mean(c(1,1,2,2),c(1,1,1,10000000))			
+			
+			# for the entire parliament 
+			
+				# get the mean for one day
+					MEANDAT <- PARTDAILY[which(PARTDAILY$daycountry == uniquedaycountryvec[1]),]
+					weighted.mean(c(MEANDAT$tenure),c(MEANDAT$seats))
+					
+					# checking this
+					head(PARLDAILY)
+					PARLDAILY$country_abb <- substr(as.character(PARLDAILY$parliament_id),0,2)
+					table(PARLDAILY$country_abb)
+					PARLDAILY[which(PARLDAILY$country_abb == "CH" & PARLDAILY$day == as.Date("1995-12-04",origin="1970-01-01")),] # not exactly the same number!
+				
+				# in a loop 
+				
+					uniquedaycountryvec <- unique(PARTDAILY$daycountry)
+					resvec2 <- vector()
+					pb <- txtProgressBar(min = 1, max = length(uniquedaycountryvec), style = 3)
+					for(i in 1:length(uniquedaycountryvec))
+					{
+						MEANDAT <- PARTDAILY[which(PARTDAILY$daycountry == uniquedaycountryvec[i]),]
+						resvec2[i] <- weighted.mean(c(MEANDAT$tenure),c(MEANDAT$seats))
+					setTxtProgressBar(pb, i)
+					}
+					close(pb)
+					summary(resvec2)
+					table(is.na(resvec2))
+					
+					TOT <- as.data.frame(cbind(uniquedaycountryvec,resvec2))
+					colnames(TOT) <- c("daycountry","averagetenure")
+					head(TOT)
+					TOT$day <- as.Date(substr(TOT$daycountry,0,10),origin="1970-01-01")
+					TOT$country <- substrRight(as.character(TOT$daycountry),2)
+					table(TOT$country) # looks familiair?
+					table(PARLDAILY$country) # yes, an exact match!
+					
+			# for only the established parties
+	
+				# get a reduced data-frame - and the unique day count vector to match it 
+				PARTDAILY_EST <- PARTDAILY[which(PARTDAILY$iamestablised),]
+				uniquedaycountryvec2 <- unique(PARTDAILY_EST$daycountry)
 				length(uniquedaycountryvec)
-				head(uniquedaycountryvec)
+				uniquedaycountryvec == uniquedaycountryvec2 # (any none existent days?), yes about 6000 in fact....' let find one so I can check!
+				uniquedaycountryvec[which(!uniquedaycountryvec %in% uniquedaycountryvec2)] # right, so this is really an earlier year problem, makes sense. Membership data for CH and DE is missing for these earlier years
+				
+					resvec3 <- vector()
+					pb <- txtProgressBar(min = 1, max = length(uniquedaycountryvec2), style = 3)
+					for(i in 1:length(uniquedaycountryvec2))
+					{
+						MEANDAT2 <- PARTDAILY_EST[which(PARTDAILY_EST$daycountry == uniquedaycountryvec2[i]),]
+						resvec3[i] <- weighted.mean(c(MEANDAT2$tenure),c(MEANDAT2$seats))
+					setTxtProgressBar(pb, i)
+					}
+					close(pb)
+					summary(resvec3)
+					table(is.na(resvec3))
+					
+					TOT2 <- as.data.frame(cbind(uniquedaycountryvec2,resvec3))
+					colnames(TOT2) <- c("daycountry","averagetenure")
+					head(TOT2)
+					TOT2$day <- as.Date(substr(TOT2$daycountry,0,10),origin="1970-01-01")
+					TOT2$country <- substrRight(as.character(TOT2$daycountry),2)
+					head(TOT2)
+				
+			# for the not establised parties
+				
+				PARTDAILY_NEST <- PARTDAILY[which(!PARTDAILY$iamestablised),]
+				uniquedaycountryvec3 <- unique(PARTDAILY_NEST$daycountry)
+				length(uniquedaycountryvec)
+				uniquedaycountryvec == uniquedaycountryvec3 # (any none existent days?), yes about 19000 in fact....
+				uniquedaycountryvec[which(!uniquedaycountryvec %in% uniquedaycountryvec3)] # right, so this is ..
+				
+					resvec4 <- vector()
+					pb <- txtProgressBar(min = 1, max = length(uniquedaycountryvec3), style = 3)
+					for(i in 1:length(uniquedaycountryvec3))
+					{
+						MEANDAT3 <- PARTDAILY_NEST[which(PARTDAILY_NEST$daycountry == uniquedaycountryvec3[i]),]
+						resvec4[i] <- weighted.mean(c(MEANDAT3$tenure),c(MEANDAT3$seats))
+					setTxtProgressBar(pb, i)
+					}
+					close(pb)
+					summary(resvec4)
+					table(is.na(resvec4))
+					
+					TOT3 <- as.data.frame(cbind(uniquedaycountryvec3,resvec4))
+					colnames(TOT3) <- c("daycountry","averagetenure")
+					TOT3$day <- as.Date(substr(TOT3$daycountry,0,10),origin="1970-01-01")
+					TOT3$country <- substrRight(as.character(TOT3$daycountry),2)
+					head(TOT3)
 			
-			# get the mean for one day
-			MEANDAT <- PARTDAILY[which(PARTDAILY$daycountry == uniquedaycountryvec[1]),]
-			weighted.mean(c(MEANDAT$tenure),c(MEANDAT$seats))
+			# merging all of these together so that ggplot can start doing its magic
 			
-			# checking this
-			head(PARLDAILY)
-			PARLDAILY$country_abb <- substr(as.character(PARLDAILY$parliament_id),0,2)
-			table(PARLDAILY$country_abb)
-			PARLDAILY[which(PARLDAILY$country_abb == "CH" & PARLDAILY$day == as.Date("1995-12-04",origin="1970-01-01")),] # not exactly the same number!
+				# merging tot2 in
+				GGDAT <- sqldf("SELECT TOT.*, TOT2.averagetenure as 'averagetenure_est'
+								FROM TOT LEFT JOIN TOT2
+								ON
+								(
+								TOT.day = TOT2.day
+								AND
+								TOT.country = TOT2.country
+								)
+								")
+				
+				# merging tot3 in
+				GGDAT <- sqldf("SELECT GGDAT.*, TOT3.averagetenure as 'averagetenure_nest'
+								FROM GGDAT LEFT JOIN TOT3
+								ON
+								(
+								GGDAT.day = TOT3.day
+								AND
+								GGDAT.country = TOT3.country
+								)
+								")
 			
+				# lets merge the election dates in here as well, because 'WHERE' is used here instead of 'ON' this also reduces the data to these dates
+				PARLDAILY$parliament_id <- as.character(PARLDAILY$parliament_id)
+				GGDATRED <- sqldf("SELECT GGDAT.*, PARL.leg_period_start_asdate, PARL.parliament_id
+						   FROM GGDAT LEFT JOIN PARL
+						   WHERE
+						   (
+						   GGDAT.country = PARL.country_abb
+						   AND
+						   GGDAT.day = PARL.leg_period_start_asdate
+							)
+						  ")
+				nrow(GGDATRED)
+			
+			
+			
+				# set the data-types proper
+				head(GGDATRED)
+				GGDATRED$averagetenure <- as.numeric(GGDATRED$averagetenure)
+				GGDATRED$averagetenure_est <- as.numeric(GGDATRED$averagetenure_est)
+				GGDATRED$averagetenure_nest <- as.numeric(GGDATRED$averagetenure_nest)
+				
+				
+				GGDAT_CH <- GGDATRED[which(GGDATRED$country == "CH"),]
+				GGDAT_DE <- GGDATRED[which(GGDATRED$country == "DE"),]
+				GGDAT_NL <- GGDATRED[which(GGDATRED$country == "NL"),] 
+				
+				
+				
+				
+				# some inspection (can be deleted later)
+				head(GGDAT_NL)
+				summary(GGDAT_CH$averagetenure)
+				
+				
+				# CH
+					ggplot(NULL) +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all"))  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties"))  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties")) +
+					  scale_y_continuous(name="Average years in parliament before") +
+					  scale_x_date(name="Swiss Nationalrat at first day in session",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+					  theme_grey(base_size = 15) +
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+				# DE
+					ggplot(NULL) +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all"))  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties"))  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties")) +
+					  scale_y_continuous(name="Average years in parliament before") +
+					  scale_x_date(name="German Bundestag at first day in session",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
+					  theme_grey(base_size = 15) +
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1))		
+				
+				# NL
+					ggplot(NULL) +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all"))  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties"))  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
+					  scale_y_continuous(name="Average years in parliament before") +
+					  scale_x_date(name="Dutch Tweede-Kamer at first day in session",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
+					  theme_grey(base_size = 15) +
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
 				
 ###############################a
 # tenure, elena's old script #
