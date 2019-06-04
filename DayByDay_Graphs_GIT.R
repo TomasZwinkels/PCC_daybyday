@@ -292,7 +292,23 @@
  ###############################################################################################################
  # Age per year #
  ###############################################################################################################
- #Split parliament id of Parldaily into components
+ 
+ # lets try to breakdown Oliver suggested to look at newcommers
+ 
+	load("./dfs_for_release/Complete_R-Environment_2019-06-03_1925.RData")
+ 
+	head(TENURELONGRED)
+	
+	length(unique(TENURELONGRED$pers_id))
+ 
+	NEWC <- sqldf("SELECT TENURELONGRED.*, MIN(TENURELONGRED.day)
+				   FROM TENURELONGRED
+				  ")
+	nrow(NEWC)
+ 
+ 
+ 
+ #Split parliament id of Parldaily into components - ELENA her old script below!
  ParlNewY <- strsplit(as.character(PARLYEARLY$parliament_id), "_")
  do.call(rbind, ParlNewY)
  PARLYEARLY2 <- data.frame(PARLYEARLY, do.call(rbind, ParlNewY))
@@ -693,6 +709,14 @@ dev.off()
 					  scale_x_date(name="Swiss Nationalrat at first day in session",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+					  
+					  # some inspection to figure out where the source of the variation is comming from
+						  PARLDAILY_CHNR[which(PARLDAILY_CHNR$day == as.Date("2011-12-05",origin="1970-01-01")),]
+						  PARTDAILY_CH <- PARTDAILY[which(PARTDAILY$country_abb == "CH"),]
+						  PARTDAILY_CH[which(PARTDAILY_CH$day == as.Date("2011-12-05",origin="1970-01-01")),]
+						  
+						  sum(PARTDAILY_CH[which(PARTDAILY_CH$day == as.Date("2011-12-05",origin="1970-01-01")),]$seats) # alright, so this is has the do with the Standerat! Oliver has changed the script that generates PARTDAILY now! running as we speak
+						  
 
 				# DE # for Germany the line match with PARLDAILY is bang on!
 					ggplot(NULL) +
@@ -703,7 +727,12 @@ dev.off()
 					  scale_y_continuous(name="Average years in parliament before") +
 					  scale_x_date(name="German Bundestag at first day in session",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 					  theme_grey(base_size = 15) +
-					  theme(axis.text.x = element_text(angle = 45, hjust = 1))		
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
+
+					# some inspection to figure out where the source of the variation is comming from
+					  PARLDAILY_DE[which(PARLDAILY_DE$day == as.Date("2011-12-05",origin="1970-01-01")),]
+					  PARTDAILY_DE <- PARTDAILY[which(PARTDAILY$country_abb == "CH"),]
+					  PARTDAILY_CH[which(PARTDAILY_CH$day == as.Date("2011-12-05",origin="1970-01-01")),]
 				
 				# NL
 					ggplot(NULL) +
@@ -716,6 +745,21 @@ dev.off()
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
 				
+		# for Germany (just for Germany for now) lets also try a disaggregation to the party level?
+				 
+			head(PARTDAILY)
+			table(PARTDAILY$country_abb)
+			PARTDAILY_DE <- PARTDAILY[which(PARTDAILY$country_abb == "DE"),]
+			nrow(PARTDAILY_DE)
+			
+			# melting the data
+			PARTDAILY_DE_RED <- PARTDAILY_DE[c("day","party_id_national")]
+			PARTDAILY_DE_MELT <- melt(PARTDAILY_DE_RED)
+			head(PARTDAILY_DE_MELT)
+			PARTDAILY_DE_MELT$day <- as.Date(PARTDAILY_DE_MELT$value,origin="1970-01-01")
+			
+			ggplot(data=PARTDAILY_DE_MELT,aes(x=day, y=tenure,color="from parldaily"))) +
+			
 ###############################a
 # tenure, elena's old script #
 ###############################
