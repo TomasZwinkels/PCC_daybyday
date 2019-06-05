@@ -143,7 +143,7 @@
 	# merge the election date in (we need this below in the graphs)
 	
 		PARLDAILY$parliament_id <- as.character(PARLDAILY$parliament_id)
-		PARLDAILY <- sqldf("SELECT PARLDAILY.*, PARL.election_date_asdate
+		PARLDAILY <- sqldf("SELECT PARLDAILY.*, PARL.election_date_asdate, PARL.assembly_abb
 						   FROM PARLDAILY LEFT JOIN PARL
 						   WHERE PARLDAILY.parliament_id = PARL.parliament_id
 						  ")
@@ -165,10 +165,10 @@
 	PARLDAILY_CH<-data.frame(PARLDAILY_countries$CH)
 	dfCH <- split(PARLDAILY_CH, PARLDAILY_CH$parl)
 	
-	PARLDAILY_CHSR<-data.frame(dfCH$SR)
-	PARLDAILY_CHNR<-data.frame(dfCH$NR)
-	PARLDAILY_DE<-data.frame(PARLDAILY_countries$DE)
-	PARLDAILY_NL<-data.frame(PARLDAILY_countries$NL)
+	PARLDAILY_CHSR <-data.frame(dfCH$SR)
+	PARLDAILY_CHNR <-data.frame(dfCH$NR)
+	PARLDAILY_DE <-data.frame(PARLDAILY_countries$DE)
+	PARLDAILY_NL <-data.frame(PARLDAILY_countries$NL)
 	
 	head(PARLDAILY_DE) 
 	
@@ -264,7 +264,6 @@
 		  theme_grey(base_size = 15) +
 		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 	  
-
 	#NL
 	# genderdaily_NL 
 		ggplot(NULL) +
@@ -293,9 +292,68 @@
  # Age per year #
  ###############################################################################################################
  
- # lets try to breakdown Oliver suggested to look at newcommers
+ ### first, just age for the entire parliament
  
-#	load("./dfs_for_release/Complete_R-Environment_2019-06-03_1925.RData")
+		# merge in the leg_period_startdate
+			head(PARLDAILY)
+			nrow(PARLDAILY)
+			TEMP11 <- sqldf("SELECT PARLDAILY.*, PARL.leg_period_start_asdate
+										   FROM PARLDAILY LEFT JOIN PARL
+										   WHERE
+										   (
+										   PARLDAILY.parliament_id = PARL.parliament_id
+											)
+										  ")
+			nrow(TEMP11)
+			head(TEMP11)
+			PARLDAILY <- TEMP11
+ 
+		# build up country / parliament specific dataframes
+			PARLDAILY$country_abb <- substr(PARLDAILY$parliament_id,0,2)
+			table(PARLDAILY$country_abb)
+	 
+			head(PARLDAILY)
+			table(PARLDAILY$country_abb,PARLDAILY$assembly_abb)
+			
+			PARLDAILY_CH <- PARLDAILY[which(PARLDAILY$country_abb == "CH"),]
+			nrow(PARLDAILY_CH)
+			PARLDAILY_CHNR <- PARLDAILY_CH[which(PARLDAILY_CH$assembly_abb == "NR"),]
+			nrow(PARLDAILY_CHNR)
+			
+			PARLDAILY_DE <- PARLDAILY[which(PARLDAILY$country_abb == "DE"),]
+			nrow(PARLDAILY_DE)
+			PARLDAILY_NL <- PARLDAILY[which(PARLDAILY$country_abb == "NL"),]
+			nrow(PARLDAILY_NL)
+		
+		# get reduced 'first day in session' versions of these data-frames
+			
+			# CH NR
+				PARLDAILY_CHNR_RED <- sqldf("SELECT PARLDAILY_CHNR.*
+											 FROM PARLDAILY_CHNR
+											 WHERE 
+											 day = leg_period_start_asdate
+											")
+				nrow(PARLDAILY_CHNR_RED) == length(unique(PARLDAILY_CHNR$parliament_id))
+			
+			# DE
+				PARLDAILY_DE_RED <- sqldf("SELECT PARLDAILY_DE.*
+											 FROM PARLDAILY_DE
+											 WHERE 
+											 day = leg_period_start_asdate
+											")
+				nrow(PARLDAILY_DE_RED) == length(unique(PARLDAILY_DE$parliament_id))
+			
+			# NL
+				PARLDAILY_NL_RED <- sqldf("SELECT PARLDAILY_NL.*
+											 FROM PARLDAILY_NL
+											 WHERE 
+											 day = leg_period_start_asdate
+											")
+				nrow(PARLDAILY_NL_RED) == length(unique(PARLDAILY_NL$parliament_id))
+			
+ ### second, lets also try to breakdown Oliver suggested and Stefanie asked for to look at newcommers
+ 
+	load("./dfs_for_release/Complete_R-Environment_2019-06-03_1925.RData")
  
 	head(TENURELONGRED)
 	
@@ -305,10 +363,50 @@
 				   FROM TENURELONGRED
 				  ")
 	nrow(NEWC)
+
+ ### putting all of this together in graphs
+	
+	newyname <- c("Average age of parliamentarians")
+	newyrange <- c(40,60) 
+	
+	# xbreaks are taken from above!
+	
+	# also borrowing some of the stuff that was put in above already
  
+	# CH
+		ggplot(NULL) +
+			  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=age)) +
+			  geom_line(data=PARLDAILY_CHNR_RED, aes(x=day, y=age),color="green",size=1.2) +
+			  scale_y_continuous(name=newyname,limits=newyrange) +
+			  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+			  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
+			  theme_grey(base_size = 15) +
+			  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+	
+	# DE
+		ggplot(NULL) +
+			  geom_line(data=PARLDAILY_DE, aes(x=day, y=age)) +
+			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age),color="green",size=1.2) +
+			  scale_y_continuous(name=newyname,limits=newyrange) +
+			  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
+			  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
+			  theme_grey(base_size = 15) +
+			  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+	# NL
+		ggplot(NULL) +
+			  geom_line(data=PARLDAILY_NL, aes(x=day, y=age)) +
+			  geom_line(data=PARLDAILY_NL_RED, aes(x=day, y=age),color="green",size=1.2) +
+			  scale_y_continuous(name=newyname,limits=newyrange) +
+			  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
+			  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
+			  theme_grey(base_size = 15) +
+			  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+ #### ELENA her old script below!
  
- 
- #Split parliament id of Parldaily into components - ELENA her old script below!
+ #Split parliament id of Parldaily into components - 
  ParlNewY <- strsplit(as.character(PARLYEARLY$parliament_id), "_")
  do.call(rbind, ParlNewY)
  PARLYEARLY2 <- data.frame(PARLYEARLY, do.call(rbind, ParlNewY))
@@ -681,26 +779,17 @@ dev.off()
 						  ")
 				nrow(GGDATRED)
 			
-			
-			
 				# set the data-types proper
 				head(GGDATRED)
 				GGDATRED$averagetenure <- as.numeric(GGDATRED$averagetenure)
 				GGDATRED$averagetenure_est <- as.numeric(GGDATRED$averagetenure_est)
 				GGDATRED$averagetenure_nest <- as.numeric(GGDATRED$averagetenure_nest)
 				
-				
 				GGDAT_CH <- GGDATRED[which(GGDATRED$country == "CH"),]
 				GGDAT_DE <- GGDATRED[which(GGDATRED$country == "DE"),]
 				GGDAT_NL <- GGDATRED[which(GGDATRED$country == "NL"),] 
 				
-				
-				
-				
-				# some inspection (can be deleted later)
-				head(GGDAT_NL)
-				summary(GGDAT_CH$averagetenure)
-				
+				yrangehere <- c(0,12)
 				
 				# CH
 					ggplot(NULL) +
@@ -708,8 +797,9 @@ dev.off()
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all"))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties"))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties")) +
-					  scale_y_continuous(name="Average years in parliament before") +
-					  scale_x_date(name="Swiss Nationalrat at first day in session",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
+					  scale_x_date(name="Swiss Nationalrat (day by day / at first day in session)",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+					  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 					  
@@ -719,20 +809,21 @@ dev.off()
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all"))  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties"))  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties")) +
-					  scale_y_continuous(name="Average years in parliament before") +
+					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
 					  scale_x_date(name="German Bundestag at first day in session",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
+					  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
-
-
+					  
 				# NL
 					ggplot(NULL) +
 					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily"))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all"))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties"))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
-					  scale_y_continuous(name="Average years in parliament before") +
+					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
 					  scale_x_date(name="Dutch Tweede-Kamer at first day in session",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
+					  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
 				
