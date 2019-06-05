@@ -353,21 +353,69 @@
 			
  ### second, lets also try to breakdown Oliver suggested and Stefanie asked for to look at newcommers
  
-	load("./dfs_for_release/Complete_R-Environment_2019-06-03_1925.RData")
- 
-	head(TENURELONGRED)
+	head(INDIVIDUAL)
+	nrow(INDIVIDUAL)
+	length(unique(INDIVIDUAL$pers_id))
 	
-	length(unique(TENURELONGRED$pers_id))
- 
-	NEWC <- sqldf("SELECT TENURELONGRED.*, MIN(TENURELONGRED.day)
-				   FROM TENURELONGRED
+	# get the day of the month in so we can reduce the individual level data to the first day of the month to speed up plotting
+	INDIVIDUAL$weekday <- weekdays(INDIVIDUAL$day)
+	INDIVIDUAL$monthday <- days(INDIVIDUAL$day)
+	
+	INDIVIDUAL_MON <- 
+	
+	NEWC <- sqldf("SELECT INDIVIDUAL.*, MIN(INDIVIDUAL.day)
+				   FROM INDIVIDUAL 
+				   GROUP BY pers_id
 				  ")
 	nrow(NEWC)
-
- ### putting all of this together in graphs
+	head(NEWC)
 	
+
+	
+	
+	NEWC_CHNR <- NEWC[which(NEWC$country == "CH" & NEWC$chamber == "NR"),]
+	NEWC_DE <- NEWC[which(NEWC$country == "DE"),]
+	NEWC_NL <- NEWC[which(NEWC$country == "NL"),]
+	head(NEWC_CHNR)
+	head(NEWC_DE)
+	head(NEWC_NL)
+	
+	INDIVIDUAL_CHNR <- INDIVIDUAL[which(INDIVIDUAL$country == "CH" & INDIVIDUAL$chamber == "NR"),]
+	INDIVIDUAL_DE <- INDIVIDUAL[which(INDIVIDUAL$country == "DE"),]
+	INDIVIDUAL_NL <- INDIVIDUAL[which(INDIVIDUAL$country == "NL"),]
+	head(INDIVIDUAL_CHNR)
+	head(INDIVIDUAL_DE)
+	head(INDIVIDUAL_NL)
+
+ # and now aggregating to parliament_level again
+	
+	# CH
+		NEWC_CHNR_PAR <- sqldf("SELECT parliament_id, MIN(day) as 'day', AVG(age) as 'age'
+								FROM NEWC_CHNR
+								GROUP BY parliament_id
+								")
+		nrow(NEWC_CHNR_PAR) == length(unique(PARLDAILY_CHNR$parliament_id))
+		head(NEWC_CHNR_PAR)
+		
+	# DE
+		NEWC_DE_PAR <- sqldf("SELECT parliament_id, MIN(day) as 'day', AVG(age) as 'age'
+								FROM NEWC_DE
+								GROUP BY parliament_id
+								")
+		nrow(NEWC_DE_PAR) == length(unique(PARLDAILY_DE$parliament_id))
+		head(NEWC_DE_PAR)
+	
+	# NL
+		NEWC_NL_PAR <- sqldf("SELECT parliament_id, MIN(day) as 'day', AVG(age) as 'age'
+								FROM NEWC_NL
+								GROUP BY parliament_id
+								")
+		nrow(NEWC_NL_PAR) == length(unique(PARLDAILY_NL$parliament_id))
+		head(NEWC_NL_PAR)
+	
+ ### putting all of this together in graphs
 	newyname <- c("Average age of parliamentarians")
-	newyrange <- c(40,60) 
+	newyrange <- c(25,70) 
 	
 	# xbreaks are taken from above!
 	
@@ -375,8 +423,11 @@
  
 	# CH
 		ggplot(NULL) +
+			  geom_point(data=INDIVIDUAL_CHNR, aes(x=day, y=age),size=0.2,color="blue",position="jitter") +
 			  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=age)) +
-			  geom_line(data=PARLDAILY_CHNR_RED, aes(x=day, y=age),color="green",size=1.2) +
+			  geom_line(data=PARLDAILY_CHNR_RED, aes(x=day, y=age),color="blue",size=1.2) +
+			  geom_line(data=NEWC_CHNR_PAR, aes(x=day, y=age),color="green",size=1.1) +
+			  geom_point(data=NEWC, aes(x=day, y=age),size=2,color="green",position="jitter") +
 			  scale_y_continuous(name=newyname,limits=newyrange) +
 			  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
@@ -386,7 +437,8 @@
 	# DE
 		ggplot(NULL) +
 			  geom_line(data=PARLDAILY_DE, aes(x=day, y=age)) +
-			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age),color="green",size=1.2) +
+			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age),color="blue",size=1.2) +
+			  geom_line(data=NEWC_DE_PAR, aes(x=day, y=age),color="green",size=1.1) +
 			  scale_y_continuous(name=newyname,limits=newyrange) +
 			  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
@@ -396,7 +448,8 @@
 	# NL
 		ggplot(NULL) +
 			  geom_line(data=PARLDAILY_NL, aes(x=day, y=age)) +
-			  geom_line(data=PARLDAILY_NL_RED, aes(x=day, y=age),color="green",size=1.2) +
+			  geom_line(data=PARLDAILY_NL_RED, aes(x=day, y=age),color="blue",size=1.2) +
+			  geom_line(data=NEWC_NL_PAR, aes(x=day, y=age),color="green",size=1.1) +
 			  scale_y_continuous(name=newyname,limits=newyrange) +
 			  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
@@ -841,7 +894,91 @@ dev.off()
 			PARTDAILY_DE_MELT$day <- as.Date(PARTDAILY_DE_MELT$value,origin="1970-01-01")
 			
 			ggplot(data=PARTDAILY_DE_MELT,aes(x=day, y=tenure,color="from parldaily"))) +
+		
+
+###############################a
+# party switching #
+###############################
+# see for info about the visualisation: https://plot.ly/r/sankey-diagram/
+
+# output format needed
+	# vector with sources
+	# vector with targets
+	# vector with values
+	
+	# can all be derived from a transition matrix
+	
+# we need MEME and PART for this
+
+		MEME = read.csv("PCC/MEME.csv", header = TRUE, sep = ";")
+		summary(MEME)
+		names(MEME)
+		head(MEME)
+		nrow(MEME)
+		
+		PART = read.csv("PCC/PART.csv", header = TRUE, sep = ";")
+		summary(PART)
+		names(PART)
+		head(PART)
+		nrow(PART)
+	
+	# lets start with creating a variable that indicates that you are the source of 'a' transition
+	
+		# for this we first need the dates properly
+			# a) Remove information on left ("[[lcen]]") and right censoring ("[[rcen]]")
+			MEME$memep_startdate <- gsub("[[lcen]]", "", MEME$memep_startdate, fixed = TRUE, useBytes = TRUE)
+			MEME$memep_enddate <- gsub("[[rcen]]", "", MEME$memep_enddate, fixed = TRUE, useBytes = TRUE)
+		
+			MEME$memep_startdate_dateformat <- as.Date(as.character(MEME$memep_startdate),format=c("%d%b%Y"),origin="1970-01-01")
+			MEME$memep_enddate_dateformat <- as.Date(as.character(MEME$memep_enddate),format=c("%d%b%Y"),origin="1970-01-01")
+			head(MEME)
+		
+		# lets make a column with the 'loweststartdate'
+			LSD <- sqldf("SELECT pers_id, min(memep_startdate_dateformat) as 'lowest_start_date'
+						  FROM MEME
+						  GROUP BY pers_id
+						")
+			nrow(LSD) == length(unique(MEME$pers_id))
+			LSD$lowest_start_date = as.Date(LSD$lowest_start_date,origin="1970-01-01")
+			head(LSD) 
 			
+			nrow(MEME)
+			MEME <- sqldf("SELECT MEME.*, LSD.lowest_start_date
+						   FROM MEME LEFT JOIN LSD
+						   ON 
+						   MEME.pers_id = LSD.pers_id
+						  ")
+			nrow(MEME)
+			head(MEME)
+
+		# if the party is not a national party, get the national party equivalent
+		
+			TEMP21 <- sqldf("SELECT MEME.*, PART.mother_party_id
+							 FROM MEME LEFT JOIN PART
+							 ON MEME.party_id = PART.party_id
+							")
+			nrow(TEMP21)
+			nrow(PART) # some double party ids exist in PART, will discuss this with Adrian and Oliver tomorrow.
+			MEMET <- TEMP21
+		
+			# if you do not have a mother party specified, then you youself should be the national party
+				table(is.na(MEMET$mother_party_id)) # only 2, so lets of emtpy?
+				table(MEMET$mother_party_id == "") # exactly
+				MEMET[which(MEMET$mother_party_id == ""),]
+				table(substrRight(MEMET[which(MEMET$mother_party_id == ""),]$party_id,2)) # all national parties indeed
+			
+			# so then this fix is good
+				MEMET$nat_party_equiv <- ifelse((MEMET$mother_party_id == ""| is.na(MEMET$mother_party_id) | MEMET$mother_party_id == "none"),MEMET$party_id,MEMET$mother_party_id)
+				table(MEMET$nat_party_equiv) # looks pretty good
+			
+			
+			
+		
+	
+
+
+		
+		
 ###############################a
 # tenure, elena's old script #
 ###############################
