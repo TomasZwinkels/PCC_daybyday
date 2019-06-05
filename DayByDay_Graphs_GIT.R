@@ -185,10 +185,10 @@
 	table(PARLDAILY_DE$seats)
 	table(PARLDAILY_NL$seats)
 	
-	ggplot(NULL) +  geom_line(data=PARLDAILY_NL, aes(x=day, y=seats))
+	
 	ggplot(NULL) +  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=seats))
 	ggplot(NULL) +  geom_line(data=PARLDAILY_DE, aes(x=day, y=seats))
-
+	ggplot(NULL) +  geom_line(data=PARLDAILY_NL, aes(x=day, y=seats))
 
 
 	# you have also checked missingness on the gender data in POLI for Dutch MPS in other scripts ('control' and oliver' script.. this all looks good).
@@ -245,7 +245,7 @@
 	# genderdaily_CH <-
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=gender)) +
-		  geom_point(data=IPU_CH, aes(x=rformateddate, y=propwomen),color="green") +
+		  geom_point(data=IPU_CH, aes(x=rformateddate, y=propwomen),color="green",size=2) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
@@ -257,7 +257,7 @@
 	#genderdaily_DE <- 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender)) +
-		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),color="green") +
+		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),color="green",size=2) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
@@ -295,7 +295,7 @@
  
  # lets try to breakdown Oliver suggested to look at newcommers
  
-	load("./dfs_for_release/Complete_R-Environment_2019-06-03_1925.RData")
+#	load("./dfs_for_release/Complete_R-Environment_2019-06-03_1925.RData")
  
 	head(TENURELONGRED)
 	
@@ -377,6 +377,8 @@ dev.off()
 
 	#### so, for this Oliver his PARTDAILY data-frame can be used
 	
+		
+	
 		## step 1: define what parties are 'established' when. 
 			# So, lets start with simply saying that a party is established when it had seats in the last two parliaments. 
 			# This can be checked on basis of PARTDAILY itself?
@@ -384,25 +386,26 @@ dev.off()
 			# step 1.1 get a country variable
 				PARTDAILY$country_abb <- substr(PARTDAILY$party_id_national,0,2)
 				table(PARTDAILY$country_abb)
+				table(PARTDAILY$parliament_id)
 			
 			# step 1.1 get the national parliament on basis of the date
 				nrow(PARTDAILY)
-				TEMP <- sqldf("SELECT PARTDAILY.*, PARL.parliament_id, PARL.previous_parliament 
+				head(PARTDAILY)
+				TEMP <- sqldf("SELECT PARTDAILY.*, PARL.previous_parliament, PARL.assembly_abb
 							  FROM PARTDAILY LEFT JOIN PARL
 							  ON 
-								(
-									(PARTDAILY.country_abb = PARL.country_abb)
-									AND
-									(PARTDAILY.day >= PARL.leg_period_start_asdate)
-									AND
-									(PARTDAILY.day <= PARL.leg_period_end_asdate)
-									AND
-									PARL.level LIKE 'NT'
-								)
+							  PARTDAILY.parliament_id = PARL.parliament_id
 							  ")
 				nrow(TEMP)
+				head(TEMP)
 				PARTDAILY <- TEMP
 			
+			# get rid of the CH standerat entries!
+				table(PARTDAILY$assembly_abb)
+				head(PARTDAILY[which(PARTDAILY$parliament_id == "CH_NT-SR_1947"),])
+				PARTDAILY <- PARTDAILY[which(!PARTDAILY$assembly_abb == "SR"),]
+				nrow(PARTDAILY)
+		
 			# step 1.2 get also the previous, previous parliament
 				TEMP2 <- sqldf("SELECT PARTDAILY.*, PARL.previous_parliament  as 'previous_previous_parliament'
 							  FROM PARTDAILY LEFT JOIN PARL
@@ -710,14 +713,6 @@ dev.off()
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 					  
-					  # some inspection to figure out where the source of the variation is comming from
-						  PARLDAILY_CHNR[which(PARLDAILY_CHNR$day == as.Date("2011-12-05",origin="1970-01-01")),]
-						  PARTDAILY_CH <- PARTDAILY[which(PARTDAILY$country_abb == "CH"),]
-						  PARTDAILY_CH[which(PARTDAILY_CH$day == as.Date("2011-12-05",origin="1970-01-01")),]
-						  
-						  sum(PARTDAILY_CH[which(PARTDAILY_CH$day == as.Date("2011-12-05",origin="1970-01-01")),]$seats) # alright, so this is has the do with the Standerat! Oliver has changed the script that generates PARTDAILY now! running as we speak
-						  
-
 				# DE # for Germany the line match with PARLDAILY is bang on!
 					ggplot(NULL) +
 					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,color="from parldaily"))  +
@@ -729,11 +724,7 @@ dev.off()
 					  theme_grey(base_size = 15) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
 
-					# some inspection to figure out where the source of the variation is comming from
-					  PARLDAILY_DE[which(PARLDAILY_DE$day == as.Date("2011-12-05",origin="1970-01-01")),]
-					  PARTDAILY_DE <- PARTDAILY[which(PARTDAILY$country_abb == "CH"),]
-					  PARTDAILY_CH[which(PARTDAILY_CH$day == as.Date("2011-12-05",origin="1970-01-01")),]
-				
+
 				# NL
 					ggplot(NULL) +
 					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily"))  +
