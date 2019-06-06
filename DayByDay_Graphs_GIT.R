@@ -980,18 +980,26 @@ dev.off()
 		# lets do this in a loop
 			
 			# step 1: get a set of other eppisodes with later startdates
-			MEMET[9,]
+			MEMET[582,]
 			mypersid <- MEMET$pers_id[582]
-			mycurrentdate <- MEMET$memep_startdate_dateformat[582]
+			mycurrentstartdate <- MEMET$memep_startdate_dateformat[582]
+			mycurrentenddate <- MEMET$memep_enddate_dateformat[582]
 			mycurrentparty <- MEMET$nat_party_equiv[582]
 			
-			getmytargetparty <- function(mypersid,mycurrentdate,mycurrentparty)
+			MEMET[9,]
+			mypersid <- MEMET$pers_id[9]
+			mycurrentstartdate <- MEMET$memep_startdate_dateformat[9]
+			mycurrentenddate <- MEMET$memep_enddate_dateformat[9]
+			mycurrentparty <- MEMET$nat_party_equiv[9]
+			
+			getmytargetparty <- function(mypersid,mycurrentstartdate,mycurrentenddate,mycurrentparty)
 			{
 				MEMETLOC  <- MEMET
 				MEMETLOC$mypersid <- mypersid
-				MEMETLOC$mycurrentdate <- mycurrentdate
+				MEMETLOC$mycurrentstartdate <- mycurrentstartdate
 				MEMETLOC$mycurrentparty <- mycurrentparty
 				
+				# restriction to these actually being within parliament is a good idea?
 				
 				LATERTHENME <- sqldf("SELECT MEMETLOC.*
 									 FROM
@@ -999,33 +1007,45 @@ dev.off()
 									 WHERE
 									 pers_id = mypersid
 									 AND
-									 memep_startdate_dateformat > mycurrentdate
+									 memep_startdate_dateformat > mycurrentstartdate
 									 AND
 									 NOT (nat_party_equiv = mycurrentparty)
 									")
 				
 				# if there is more then one, select the one with the lowest date
-				MYTARGET <- sqldf("SELECT LATERTHENME.*, MIN(memep_startdate_dateformat)
+				MYTARGET <- sqldf("SELECT LATERTHENME.*, MIN(memep_startdate_dateformat) as 'min_date'
 									FROM LATERTHENME
 									")
+			
+			 if (!is.na(MYTARGET$min_date))
+				{				
+					# check if what is left is maybe a 'none' party, in less then a year from leaving, in that case remove that one from 'later then me' and try again - only if anything is left then however
+					if((MYTARGET$nat_party_equiv == "DE_none_NT" | MYTARGET$nat_party_equiv == "CH_none_NT" | MYTARGET$nat_party_equiv == "NL_none_NT") & ((MYTARGET$memep_enddate_dateformat - mycurrentenddate) < 365))
+					{
+						REMAINERS <- LATERTHENME[which(!LATERTHENME$memep_id == MYTARGET$memep_id),]
+						
+						MYTARGET <- sqldf("SELECT REMAINERS.*, MIN(memep_startdate_dateformat) as 'min_date'
+										FROM REMAINERS
+										")
+					}
+				}
+				
 			return(MYTARGET$nat_party_equiv)
 			}
 			
 			# testing
-			getmytargetparty(MEMET$pers_id[582],MEMET$memep_startdate_dateformat[582],MEMET$nat_party_equiv[582]) # should be CDA
-			getmytargetparty(MEMET$pers_id[9],MEMET$memep_startdate_dateformat[9],MEMET$nat_party_equiv[9]) # should be NA
+			getmytargetparty(MEMET$pers_id[582],MEMET$memep_startdate_dateformat[582],MEMET$memep_enddate_dateformat[582],MEMET$nat_party_equiv[582]) # should be CDA
+			getmytargetparty(MEMET$pers_id[9],MEMET$memep_startdate_dateformat[9],MEMET$memep_enddate_dateformat[9],MEMET$nat_party_equiv[9]) # should be NA
 			
 			# run as a loop
 			pb <- txtProgressBar(min = 1, max = nrow(MEMET), style = 3)
 			resvectarget <- vector()
 			for(i in 1:nrow(MEMET))
 			{
-				resvectarget[i] <- getmytargetparty(MEMET$pers_id[i],MEMET$memep_startdate_dateformat[i],MEMET$nat_party_equiv[i])
+				resvectarget[i] <- getmytargetparty(MEMET$pers_id[i],MEMET$memep_startdate_dateformat[i],MEMET$memep_enddate_dateformat[i],MEMET$nat_party_equiv[i])
 				setTxtProgressBar(pb, i)
 			}
 			close(pb)
-	
-		save(resvectarget,file="resvectarget")
 	
 		MEMET$id_target_party <- resvectarget
 	
@@ -1094,41 +1114,156 @@ dev.off()
 			PART$RGB_int <- rgb(PART$color_R/255,PART$color_G/255,PART$color_B/255)
 
 	# sankey diagram for NL
+	
+		## for later, this code could maybe be used to set the colors
+			
+			# get the color codes merged in from PART
+			if(FALSE)
+			{
+					partyids <- sort(unique(rownames(transtabNL),colnames(transtabNL)))
+					party_abbs <- gsub("_NT","",gsub("NL_","",partyids))
+					
+					PD <- as.data.frame(cbind(partyids,party_abbs))
+					PD <- sqldf("SELECT PD.*, PART.RGB_int as 'colorforparty'
+						   FROM PD LEFT JOIN PART
+						   ON PD.partyids = PART.party_id
+						  ")
+						  
+					PD <- PD[which(!PD$colorforparty == "<NA>"),]
+			
+				TEMP <- sqldf("SELECT PBNL.*, PD.colorforparty
+								FROM PBNL LEFT JOIN PD
+								ON PBNL.source = PD.partyids
+								")
+				TEMP$colorforparty[which(is.na(TEMP$colorforparty))] <- "#E7D031"
+			{
 			
 		# getting vectors into the format we need them in
 			
+			# get from the table above
 			PBNL <- transtabNL_melted_red
 			
+			# clean and set the correct data types
 			PBNL$source <- as.character(PBNL$source)
 			PBNL$target <- as.character(PBNL$target)
 			PBNL$target <- paste(as.character(PBNL$target)," ",sep="")
 			PBNL$source <- gsub("_NT","",gsub("NL_","",PBNL$source))
 			PBNL$target <- gsub("_NT","",gsub("NL_","",PBNL$target))
+			PBNL$transitioncount <- as.numeric(PBNL$transitioncount)
 			
-			
-			partyids <- sort(unique(rownames(transtabNL),colnames(transtabNL)))
-			party_abbs <- gsub("_NT","",gsub("NL_","",partyids))
-			
-			PD <- as.data.frame(cbind(partyids,party_abbs))
-			PD <- sqldf("SELECT PD.*, PART.RGB_int as 'colorforparty'
-				   FROM PD LEFT JOIN PART
-				   ON PD.partyids = PART.party_id
-				  ")
-			PD <- PD[which(!PD$colorforparty == "<NA>"),]
-			  
 			#Plotting
-
-			# color options e.t.c.
-					colors_node_array = paste0("[", paste0("'", PD$colorforparty,"'", collapse = ','), "]")
-
-					opts = paste0("{
-					link: { colorMode: 'target'},
-					node: { colors: ", colors_node_array ," }
-					}" )
+				# (color) options e.t.c.
+						opts = paste0("{
+						height: 400,
+						link: { colorMode: 'gradient'},
+						}" )
 			
 			# and the plot
 				p <- gvisSankey(PBNL,from="source",to="target", weight="transitioncount", options = list(sankey=opts))
 				plot(p)
+				
+			## plotly alternative!
+			
+					PBNL <- transtabNL_melted_red
+					partyids <- sort(unique(rownames(transtabNL),colnames(transtabNL)))
+					party_abbs <- gsub("_NT","",gsub("NL_","",partyids))
+					
+					PD <- as.data.frame(cbind(partyids,party_abbs))
+					PD <- sqldf("SELECT PD.*, PART.RGB_int as 'colorforparty'
+						   FROM PD LEFT JOIN PART
+						   ON PD.partyids = PART.party_id
+						  ")
+						  
+						PBNL$source <- as.character(PBNL$source)
+						PBNL$target <- as.character(PBNL$target)
+						PBNL$target <- paste(as.character(PBNL$target)," ",sep="")
+					
+						PBNL$transitioncount <- as.numeric(PBNL$transitioncount)
+			
+					COLDAT <- as.data.frame(cbind(names(table(c(PBNL$source,PBNL$target)))))
+					colnames(COLDAT) <- "label"
+					COLDAT$id <- str_trim(COLDAT$label)
+					
+					# now merge the color in
+					COLDAT <- sqldf("SELECT COLDAT.*, PD.colorforparty
+						   FROM COLDAT LEFT JOIN PD
+						   ON COLDAT.id = PD.partyids
+						   ")
+					
+					COLDAT$label <- gsub("_NT","",gsub("NL_","",COLDAT$label))
+					
+					PBNL$source <- gsub("_NT","",gsub("NL_","",PBNL$source))
+					PBNL$target <- gsub("_NT","",gsub("NL_","",PBNL$target))
+					
+					labelvec <- COLDAT$label
+					labelcolorvec <- COLDAT$colorforparty
+					sourcevec <- PBNL$source
+					targetvec <- PBNL$target
+					valuevec <- PBNL$transitioncount
+					
+				library(plotly)
+
+				test <-  plot_ly(
+						type = "sankey",
+						orientation = "h",
+
+						node = list(
+						  label = labelvec,
+						  color = labelcolorvec,
+						  pad = 15,
+						  thickness = 20,
+						  line = list(
+							color = "black",
+							width = 0.5
+						  )
+						),
+
+						link = list(
+						  source = sourcevec,
+						  target = targetvec,
+						  value = valuevec
+						)
+					  ) 
+					  
+					  %>% 
+					  layout(
+						title = "Basic Sankey Diagram",
+						font = list(
+						  size = 10
+						)
+					)
+				test
+
+			p <- plot_ly(midwest, x = ~percollege, color = ~state, type = "box")
+			p
+
+			p <- plot_ly(
+				type = "sankey",
+				orientation = "h",
+
+				node = list(
+				  label = c("A1", "A2", "B1", "B2", "C1", "C2"),
+				  color = c("blue", "blue", "blue", "blue", "blue", "blue"),
+				  pad = 15,
+				  thickness = 20,
+				  line = list(
+					color = "black",
+					width = 0.5
+				  )
+				),
+
+				link = list(
+				  source = c(0,1,0,2,3,3),
+				  target = c(2,3,3,4,4,5),
+				  value =  c(8,4,2,8,4,2)
+				)
+			  ) %>% 
+			  layout(
+				title = "Basic Sankey Diagram",
+				font = list(
+				  size = 10
+				)
+			)
 
 	# sankey diagram for DE
 		
@@ -1141,7 +1276,7 @@ dev.off()
 			PBDE$target <- gsub("_NT","",gsub("DE_","",PBDE$target))
 			
 			# and the plot
-				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount") #, options = list(sankey=opts))
+				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount", options = list(sankey=opts))
 				plot(p)
 	
 	# sankey diagram for CH
@@ -1155,7 +1290,7 @@ dev.off()
 			PBCH$target <- gsub("_NT","",gsub("CH_","",PBCH$target))
 			
 			# and the plot
-				p <- gvisSankey(PBCH,from="source",to="target", weight="transitioncount") #, options = list(sankey=opts))
+				p <- gvisSankey(PBCH,from="source",to="target", weight="transitioncount"), options = list(sankey=opts))
 				plot(p)
 	
 ###############################a
