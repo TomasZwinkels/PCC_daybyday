@@ -223,6 +223,10 @@
 		UNI_NL <- as.data.frame(unique(PARLDAILY_NL$election_date_asdate))
 		colnames(UNI_NL) <- "election_date_asdate"	
 	
+	
+	
+	
+	
 	# these are the 'matching vectors' from the IPU data
 		min(which(names(IPU) == "X1960"))
 		max(which(names(IPU) == "X1960"))
@@ -245,6 +249,24 @@
 		
 		xbreaks_NL <- UNI_NL$election_date_asdate
 		xlabels_NL <- substr(as.character(UNI_NL$election_date_asdate),0,4)
+	
+	# the number of people graph with a bit more details
+	
+		ggplot(NULL) +  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=seats)) +
+		geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
+		scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+		theme(axis.text.x = element_text(angle = 45, hjust = 1))
+		
+		ggplot(NULL) +  geom_line(data=PARLDAILY_DE, aes(x=day, y=seats)) +
+		geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
+		scale_x_date(name="Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
+		theme(axis.text.x = element_text(angle = 45, hjust = 1))
+		
+		ggplot(NULL) +  geom_line(data=PARLDAILY_NL, aes(x=day, y=seats)) +
+		geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
+		scale_x_date(name="Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
+		theme(axis.text.x = element_text(angle = 45, hjust = 1))
+		
 	
 	#CH
 	# genderdaily_CH <-
