@@ -366,24 +366,72 @@
 	INDIVIDUAL$weekday <- weekdays(INDIVIDUAL$day)
 	INDIVIDUAL$monthday <- days(INDIVIDUAL$day)
 	
-	INDIVIDUAL_MON <- 
+	head(INDIVIDUAL)
 	
-	NEWC <- sqldf("SELECT INDIVIDUAL.*, MIN(INDIVIDUAL.day)
-				   FROM INDIVIDUAL 
-				   GROUP BY pers_id
-				  ")
-	nrow(NEWC)
-	head(NEWC)
 	
+	# get a data frame for the NEWcomers, and their age
+		NEWC <- sqldf("SELECT INDIVIDUAL.*, MIN(INDIVIDUAL.day)
+					   FROM INDIVIDUAL 
+					   GROUP BY pers_id
+					  ")
+		nrow(NEWC)
+		head(NEWC)
 
+		# and the country level version of these data
+		NEWC_CHNR <- NEWC[which(NEWC$country == "CH" & NEWC$chamber == "NR"),]
+		NEWC_DE <- NEWC[which(NEWC$country == "DE"),]
+		NEWC_NL <- NEWC[which(NEWC$country == "NL"),]
+		head(NEWC_CHNR)
+		head(NEWC_DE)
+		head(NEWC_NL)
+
+		# get a data frame for the LEAVers, and their age
+		LEAV <- sqldf("SELECT INDIVIDUAL.*, MAX(INDIVIDUAL.day)
+					   FROM INDIVIDUAL 
+					   GROUP BY pers_id
+					  ")
+		nrow(LEAV)
+		head(LEAV)
+		
+		LEAV_CHNR <- LEAV[which(LEAV$country == "CH" & LEAV$chamber == "NR"),]
+		LEAV_DE <- LEAV[which(LEAV$country == "DE"),]
+		LEAV_NL <- LEAV[which(LEAV$country == "NL"),]
+		head(LEAV_CHNR)
+		head(LEAV_DE)
+		head(LEAV_NL)
+		
+		# CH
+			LEAVE_CHNR_PAR <- sqldf("SELECT parliament_id, MIN(day) as 'day', AVG(age) as 'age'
+									FROM LEAV_CHNR
+									GROUP BY parliament_id
+									")
+			nrow(LEAVE_CHNR_PAR) == length(unique(PARLDAILY_CHNR$parliament_id))
+			head(LEAVE_CHNR_PAR)
+			
+		# DE
+			LEAVE_DE_PAR <- sqldf("SELECT parliament_id, MIN(day) as 'day', AVG(age) as 'age'
+									FROM LEAV_DE
+									GROUP BY parliament_id
+									")
+			nrow(LEAVE_DE_PAR) == length(unique(PARLDAILY_DE$parliament_id))
+			head(LEAVE_DE_PAR)
+		
+		# NL
+			LEAVE_NL_PAR <- sqldf("SELECT parliament_id, MIN(day) as 'day', AVG(age) as 'age'
+									FROM LEAV_NL
+									GROUP BY parliament_id
+									")
+			nrow(LEAVE_NL_PAR) == length(unique(PARLDAILY_NL$parliament_id))
+			head(LEAVE_NL_PAR)
+
+		# and the country level version of these data
+		NEWC_CHNR <- NEWC[which(NEWC$country == "CH" & NEWC$chamber == "NR"),]
+		NEWC_DE <- NEWC[which(NEWC$country == "DE"),]
+		NEWC_NL <- NEWC[which(NEWC$country == "NL"),]
+		head(NEWC_CHNR)
+		head(NEWC_DE)
+		head(NEWC_NL)
 	
-	
-	NEWC_CHNR <- NEWC[which(NEWC$country == "CH" & NEWC$chamber == "NR"),]
-	NEWC_DE <- NEWC[which(NEWC$country == "DE"),]
-	NEWC_NL <- NEWC[which(NEWC$country == "NL"),]
-	head(NEWC_CHNR)
-	head(NEWC_DE)
-	head(NEWC_NL)
 	
 	INDIVIDUAL_CHNR <- INDIVIDUAL[which(INDIVIDUAL$country == "CH" & INDIVIDUAL$chamber == "NR"),]
 	INDIVIDUAL_DE <- INDIVIDUAL[which(INDIVIDUAL$country == "DE"),]
@@ -420,7 +468,7 @@
 	
  ### putting all of this together in graphs
 	newyname <- c("Average age of parliamentarians")
-	newyrange <- c(25,70) 
+	newyrange <- c(35,70) 
 	
 	# xbreaks are taken from above!
 	
@@ -428,11 +476,12 @@
  
 	# CH
 		ggplot(NULL) +
-			  geom_point(data=INDIVIDUAL_CHNR, aes(x=day, y=age),size=0.2,color="blue",position="jitter") +
+			#  geom_point(data=INDIVIDUAL_CHNR, aes(x=day, y=age),size=0.2,color="blue",position="jitter") +
 			  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=age)) +
 			  geom_line(data=PARLDAILY_CHNR_RED, aes(x=day, y=age),color="blue",size=1.2) +
 			  geom_line(data=NEWC_CHNR_PAR, aes(x=day, y=age),color="green",size=1.1) +
-			  geom_point(data=NEWC, aes(x=day, y=age),size=2,color="green",position="jitter") +
+			  geom_line(data=LEAVE_CHNR_PAR, aes(x=day, y=age),color="brown",size=1.1) +
+			#  geom_point(data=NEWC, aes(x=day, y=age),size=2,color="green",position="jitter") +
 			  scale_y_continuous(name=newyname,limits=newyrange) +
 			  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
@@ -441,9 +490,10 @@
 	
 	# DE
 		ggplot(NULL) +
-			  geom_line(data=PARLDAILY_DE, aes(x=day, y=age)) +
-			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age),color="blue",size=1.2) +
+			  geom_line(data=PARLDAILY_DE, aes(x=day, y=age),size=1) +
+			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age),color="blue",size=1.3) +
 			  geom_line(data=NEWC_DE_PAR, aes(x=day, y=age),color="green",size=1.1) +
+			  geom_line(data=LEAVE_DE_PAR, aes(x=day, y=age),color="brown",size=1.1) +
 			  scale_y_continuous(name=newyname,limits=newyrange) +
 			  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
@@ -455,6 +505,7 @@
 			  geom_line(data=PARLDAILY_NL, aes(x=day, y=age)) +
 			  geom_line(data=PARLDAILY_NL_RED, aes(x=day, y=age),color="blue",size=1.2) +
 			  geom_line(data=NEWC_NL_PAR, aes(x=day, y=age),color="green",size=1.1) +
+			  geom_line(data=LEAVE_NL_PAR, aes(x=day, y=age),color="brown",size=1.1) +
 			  scale_y_continuous(name=newyname,limits=newyrange) +
 			  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
@@ -851,10 +902,10 @@ dev.off()
 				
 				# CH
 					ggplot(NULL) +
-					  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="from parldaily"))  +
-					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all"))  +
-					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties"))  +
-					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties")) +
+					  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="from parldaily",size=1))  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all",size=1.5))  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
+				#	  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties",size=1.01)) +
 					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
 					  scale_x_date(name="Swiss Nationalrat (day by day / at first day in session)",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
@@ -863,10 +914,10 @@ dev.off()
 					  
 				# DE # for Germany the line match with PARLDAILY is bang on!
 					ggplot(NULL) +
-					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,color="from parldaily"))  +
-					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all"))  +
-					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties"))  +
-					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties")) +
+					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,color="from parldaily",size=1))  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all",size=1.5))  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
+				#	  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties")) +
 					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
 					  scale_x_date(name="German Bundestag at first day in session",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
@@ -875,11 +926,11 @@ dev.off()
 					  
 				# NL
 					ggplot(NULL) +
-					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily"))  +
-					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all"))  +
-					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties"))  +
+					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily",size=1))  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all",size=1.5))  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
-					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
+				#	  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
 					  scale_x_date(name="Dutch Tweede-Kamer at first day in session",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
@@ -1142,6 +1193,9 @@ dev.off()
 			
 			# get from the table above
 			PBNL <- transtabNL_melted_red
+			sum(PBNL$transitioncount)
+			length(unique(INDIVIDUAL$pers_id[which(INDIVIDUAL$country=="NL")])) # of x MPS
+			sum(PBNL$transitioncount) / length(unique(INDIVIDUAL$pers_id[which(INDIVIDUAL$country=="NL")]))
 			
 			# clean and set the correct data types
 			PBNL$source <- as.character(PBNL$source)
@@ -1154,15 +1208,15 @@ dev.off()
 			#Plotting
 				# (color) options e.t.c.
 						opts = paste0("{
-						height: 400,
 						link: { colorMode: 'gradient'},
+						TextStyle: {fontSize:16}
 						}" )
 			
 			# and the plot
-				p <- gvisSankey(PBNL,from="source",to="target", weight="transitioncount", options = list(sankey=opts))
+				p <- gvisSankey(PBNL,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=150,height=500))
 				plot(p)
 				
-			## plotly alternative!
+			## plotly alternative! - does not work
 			
 					PBNL <- transtabNL_melted_red
 					partyids <- sort(unique(rownames(transtabNL),colnames(transtabNL)))
@@ -1200,74 +1254,13 @@ dev.off()
 					sourcevec <- PBNL$source
 					targetvec <- PBNL$target
 					valuevec <- PBNL$transitioncount
-					
-				library(plotly)
-
-				test <-  plot_ly(
-						type = "sankey",
-						orientation = "h",
-
-						node = list(
-						  label = labelvec,
-						  color = labelcolorvec,
-						  pad = 15,
-						  thickness = 20,
-						  line = list(
-							color = "black",
-							width = 0.5
-						  )
-						),
-
-						link = list(
-						  source = sourcevec,
-						  target = targetvec,
-						  value = valuevec
-						)
-					  ) 
-					  
-					  %>% 
-					  layout(
-						title = "Basic Sankey Diagram",
-						font = list(
-						  size = 10
-						)
-					)
-				test
-
-			p <- plot_ly(midwest, x = ~percollege, color = ~state, type = "box")
-			p
-
-			p <- plot_ly(
-				type = "sankey",
-				orientation = "h",
-
-				node = list(
-				  label = c("A1", "A2", "B1", "B2", "C1", "C2"),
-				  color = c("blue", "blue", "blue", "blue", "blue", "blue"),
-				  pad = 15,
-				  thickness = 20,
-				  line = list(
-					color = "black",
-					width = 0.5
-				  )
-				),
-
-				link = list(
-				  source = c(0,1,0,2,3,3),
-				  target = c(2,3,3,4,4,5),
-				  value =  c(8,4,2,8,4,2)
-				)
-			  ) %>% 
-			  layout(
-				title = "Basic Sankey Diagram",
-				font = list(
-				  size = 10
-				)
-			)
 
 	# sankey diagram for DE
 		
 			PBDE <- transtabDE_melted_red
+			sum(PBDE$transitioncount)
+			length(unique(INDIVIDUAL$pers_id[which(INDIVIDUAL$country=="DE")])) # of x MPS
+			sum(PBDE$transitioncount) / length(unique(INDIVIDUAL$pers_id[which(INDIVIDUAL$country=="DE")]))
 			
 			PBDE$source <- as.character(PBDE$source)
 			PBDE$target <- as.character(PBDE$target)
@@ -1276,12 +1269,15 @@ dev.off()
 			PBDE$target <- gsub("_NT","",gsub("DE_","",PBDE$target))
 			
 			# and the plot
-				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount", options = list(sankey=opts))
+				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=150,height=500))
 				plot(p)
 	
 	# sankey diagram for CH
 		
 			PBCH <- transtabCH_melted_red
+			sum(PBCH$transitioncount)
+			length(unique(INDIVIDUAL$pers_id[which(INDIVIDUAL$country=="CH")])) # of x MPS
+			sum(PBCH$transitioncount) / length(unique(INDIVIDUAL$pers_id[which(INDIVIDUAL$country=="CH")]))
 			
 			PBCH$source <- as.character(PBCH$source)
 			PBCH$target <- as.character(PBCH$target)
@@ -1290,7 +1286,7 @@ dev.off()
 			PBCH$target <- gsub("_NT","",gsub("CH_","",PBCH$target))
 			
 			# and the plot
-				p <- gvisSankey(PBCH,from="source",to="target", weight="transitioncount"), options = list(sankey=opts))
+				p <- gvisSankey(PBCH,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=150,height=500))
 				plot(p)
 	
 ###############################a
