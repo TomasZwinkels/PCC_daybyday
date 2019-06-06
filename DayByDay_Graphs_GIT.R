@@ -24,6 +24,9 @@
 	#setwd("C:/Users/huwylero/Basel Powi Dropbox/Data_Paper_DFs")
 	#setwd("E:/Basel Powi Dropbox/Data_Paper_DFs")
 	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+	
+	detach("package:googleVis", unload=TRUE)
+	install.packages("googleVis")
 
 # load libraries
 	library(ggplot2)
@@ -34,6 +37,8 @@
 	library(googleVis) # for Sankey Diagram (https://databreadandbutter.wordpress.com/2017/09/25/erster-blogbeitrag/)
 	library(reshape2) #to reshape data
 	library(sqldf)
+	library(plotly)
+	library(grDevices)
 
 #############
 # Load data #
@@ -899,7 +904,7 @@ dev.off()
 ###############################a
 # party switching #
 ###############################
-# see for info about the visualisation: https://plot.ly/r/sankey-diagram/
+
 
 # output format needed
 	# vector with sources
@@ -971,14 +976,188 @@ dev.off()
 				MEMET$nat_party_equiv <- ifelse((MEMET$mother_party_id == ""| is.na(MEMET$mother_party_id) | MEMET$mother_party_id == "none"),MEMET$party_id,MEMET$mother_party_id)
 				table(MEMET$nat_party_equiv) # looks pretty good
 			
+		# so, now, you are the source of a transition when there is another date for the same person that is higher then yours and the national party id of that one is not the same as yours
+		# lets do this in a loop
 			
+			# step 1: get a set of other eppisodes with later startdates
+			MEMET[9,]
+			mypersid <- MEMET$pers_id[582]
+			mycurrentdate <- MEMET$memep_startdate_dateformat[582]
+			mycurrentparty <- MEMET$nat_party_equiv[582]
 			
-		
+			getmytargetparty <- function(mypersid,mycurrentdate,mycurrentparty)
+			{
+				MEMETLOC  <- MEMET
+				MEMETLOC$mypersid <- mypersid
+				MEMETLOC$mycurrentdate <- mycurrentdate
+				MEMETLOC$mycurrentparty <- mycurrentparty
+				
+				
+				LATERTHENME <- sqldf("SELECT MEMETLOC.*
+									 FROM
+									 MEMETLOC 
+									 WHERE
+									 pers_id = mypersid
+									 AND
+									 memep_startdate_dateformat > mycurrentdate
+									 AND
+									 NOT (nat_party_equiv = mycurrentparty)
+									")
+				
+				# if there is more then one, select the one with the lowest date
+				MYTARGET <- sqldf("SELECT LATERTHENME.*, MIN(memep_startdate_dateformat)
+									FROM LATERTHENME
+									")
+			return(MYTARGET$nat_party_equiv)
+			}
+			
+			# testing
+			getmytargetparty(MEMET$pers_id[582],MEMET$memep_startdate_dateformat[582],MEMET$nat_party_equiv[582]) # should be CDA
+			getmytargetparty(MEMET$pers_id[9],MEMET$memep_startdate_dateformat[9],MEMET$nat_party_equiv[9]) # should be NA
+			
+			# run as a loop
+			pb <- txtProgressBar(min = 1, max = nrow(MEMET), style = 3)
+			resvectarget <- vector()
+			for(i in 1:nrow(MEMET))
+			{
+				resvectarget[i] <- getmytargetparty(MEMET$pers_id[i],MEMET$memep_startdate_dateformat[i],MEMET$nat_party_equiv[i])
+				setTxtProgressBar(pb, i)
+			}
+			close(pb)
 	
-
-
+		save(resvectarget,file="resvectarget")
+	
+		MEMET$id_target_party <- resvectarget
+	
+	## this now needs to be aggregated for each source party, we need to know how often what parties are the target parties, this is country specific
 		
+		# first, get a dataframe per country 
+			MEMET$country_abb <- substr(MEMET$memep_id,0,2)
+			
+			# NL
+				MEMET_NL <- MEMET[which(MEMET$country_abb == "NL"),]
+				# within this, we basically just need a table, the rows have the source, the columns the target and the count the value
+				
+					transtabNL <- table(MEMET_NL$nat_party_equiv,MEMET_NL$id_target_party)
+				
+					# we can then melt this to get the format that plotly / sanky diagram likes
+					transtabNL_melted <- melt(transtabNL)
+					names(transtabNL_melted) <- c("source","target","transitioncount")
+					transtabNL_melted_red <- transtabNL_melted[which(transtabNL_melted$transitioncount > 0),]
+					
+			# DE
+				MEMET_DE <- MEMET[which(MEMET$country_abb == "DE"),]
+				# within this, we basically just need a table, the rows have the source, the columns the target and the count the value
+				
+					transtabDE <- table(MEMET_DE$nat_party_equiv,MEMET_DE$id_target_party)
+				
+					# we can then melt this to get the format that plotly / sanky diagram likes
+					transtabDE_melted <- melt(transtabDE)
+					names(transtabDE_melted) <- c("source","target","transitioncount")
+					transtabDE_melted_red <- transtabDE_melted[which(transtabDE_melted$transitioncount > 0),]
+					
+			# CH
+				MEMET_CH <- MEMET[which(MEMET$country_abb == "CH"),]
+				# within this, we basically just need a table, the rows have the source, the columns the target and the count the value
+				
+					transtabCH <- table(MEMET_CH$nat_party_equiv,MEMET_CH$id_target_party)
+				
+					# we can then melt this to get the format that plotly / sanky diagram likes
+					transtabCH_melted <- melt(transtabCH)
+					names(transtabCH_melted) <- c("source","target","transitioncount")
+					transtabCH_melted_red <- transtabCH_melted[which(transtabCH_melted$transitioncount > 0),]
+			
+			
+	## and then the plot!
+	
+		# get the colors per party in PART into the proper format
 		
+			table(PART$RGB)
+			library(purrr)
+			PART$RGB <- as.character(PART$RGB)
+			PART$RGB <- ifelse(PART$RGB == "","rgb(999,999,999)",PART$RGB)
+			
+			cleaned <- gsub(")","",gsub("rgb(","",PART$RGB,fixed=TRUE),fixed=TRUE)
+			
+			PART$color_R <- unlist(map(strsplit(cleaned,","),1))
+			table(PART$color_R)
+			PART$color_R <- as.numeric(ifelse(PART$color_R == "999",149,PART$color_R)) # 149 is grey
+			
+			PART$color_G <- unlist(map(strsplit(cleaned,","),2))
+			table(PART$color_G)
+			PART$color_G <- as.numeric(ifelse(PART$color_G == "999",149,PART$color_G))
+			
+			PART$color_B <- unlist(map(strsplit(cleaned,","),3))
+			table(PART$color_B)
+			PART$color_B <- as.numeric(ifelse(PART$color_B == "999",149,PART$color_B))
+		
+			PART$RGB_int <- rgb(PART$color_R/255,PART$color_G/255,PART$color_B/255)
+
+	# sankey diagram for NL
+			
+		# getting vectors into the format we need them in
+			
+			PBNL <- transtabNL_melted_red
+			
+			PBNL$source <- as.character(PBNL$source)
+			PBNL$target <- as.character(PBNL$target)
+			PBNL$target <- paste(as.character(PBNL$target)," ",sep="")
+			PBNL$source <- gsub("_NT","",gsub("NL_","",PBNL$source))
+			PBNL$target <- gsub("_NT","",gsub("NL_","",PBNL$target))
+			
+			
+			partyids <- sort(unique(rownames(transtabNL),colnames(transtabNL)))
+			party_abbs <- gsub("_NT","",gsub("NL_","",partyids))
+			
+			PD <- as.data.frame(cbind(partyids,party_abbs))
+			PD <- sqldf("SELECT PD.*, PART.RGB_int as 'colorforparty'
+				   FROM PD LEFT JOIN PART
+				   ON PD.partyids = PART.party_id
+				  ")
+			PD <- PD[which(!PD$colorforparty == "<NA>"),]
+			  
+			#Plotting
+
+			# color options e.t.c.
+					colors_node_array = paste0("[", paste0("'", PD$colorforparty,"'", collapse = ','), "]")
+
+					opts = paste0("{
+					link: { colorMode: 'target'},
+					node: { colors: ", colors_node_array ," }
+					}" )
+			
+			# and the plot
+				p <- gvisSankey(PBNL,from="source",to="target", weight="transitioncount", options = list(sankey=opts))
+				plot(p)
+
+	# sankey diagram for DE
+		
+			PBDE <- transtabDE_melted_red
+			
+			PBDE$source <- as.character(PBDE$source)
+			PBDE$target <- as.character(PBDE$target)
+			PBDE$target <- paste(as.character(PBDE$target)," ",sep="")
+			PBDE$source <- gsub("_NT","",gsub("DE_","",PBDE$source))
+			PBDE$target <- gsub("_NT","",gsub("DE_","",PBDE$target))
+			
+			# and the plot
+				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount") #, options = list(sankey=opts))
+				plot(p)
+	
+	# sankey diagram for CH
+		
+			PBCH <- transtabCH_melted_red
+			
+			PBCH$source <- as.character(PBCH$source)
+			PBCH$target <- as.character(PBCH$target)
+			PBCH$target <- paste(as.character(PBCH$target)," ",sep="")
+			PBCH$source <- gsub("_NT","",gsub("CH_","",PBCH$source))
+			PBCH$target <- gsub("_NT","",gsub("CH_","",PBCH$target))
+			
+			# and the plot
+				p <- gvisSankey(PBCH,from="source",to="target", weight="transitioncount") #, options = list(sankey=opts))
+				plot(p)
+	
 ###############################a
 # tenure, elena's old script #
 ###############################
