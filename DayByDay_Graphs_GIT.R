@@ -39,6 +39,7 @@
 	library(sqldf)
 	library(plotly)
 	library(grDevices)
+	library(lubridate)
 
 #############
 # Load data #
@@ -97,7 +98,7 @@
 		PARL$leg_period_end_asdate <- as.Date(as.character(PARL$leg_period_end),format=c("%d%b%Y"))
 		head(PARL)
 		
-		# and reduce to only the national parliament to avoid mistakes
+		# and reduce to only the national parliament and the nationalrat to avoid mistakes
 		PARL <- PARL[which(PARL$level == "NT"),]
 
 # and the % of women in parliament data from IPU / worldbank
@@ -385,8 +386,8 @@
 	length(unique(INDIVIDUAL$pers_id))
 	
 	# get the day of the month in so we can reduce the individual level data to the first day of the month to speed up plotting
-	INDIVIDUAL$weekday <- weekdays(INDIVIDUAL$day)
-	INDIVIDUAL$monthday <- days(INDIVIDUAL$day)
+#	INDIVIDUAL$weekday <- weekdays(INDIVIDUAL$day)
+#	INDIVIDUAL$monthday <- days(INDIVIDUAL$day)
 	
 	head(INDIVIDUAL)
 	
@@ -398,7 +399,7 @@
 					  ")
 		nrow(NEWC)
 		head(NEWC)
-
+		
 		# and the country level version of these data
 		NEWC_CHNR <- NEWC[which(NEWC$country == "CH" & NEWC$chamber == "NR"),]
 		NEWC_DE <- NEWC[which(NEWC$country == "DE"),]
@@ -408,7 +409,7 @@
 		head(NEWC_NL)
 
 		# get a data frame for the LEAVers, and their age
-		LEAV <- sqldf("SELECT INDIVIDUAL.*, MAX(INDIVIDUAL.day)
+		LEAV <- sqldf("SELECT INDIVIDUAL.*, MAX(INDIVIDUAL.day) as 'last_day'
 					   FROM INDIVIDUAL 
 					   GROUP BY pers_id
 					  ")
@@ -487,6 +488,117 @@
 								")
 		nrow(NEWC_NL_PAR) == length(unique(PARLDAILY_NL$parliament_id))
 		head(NEWC_NL_PAR)
+
+#### a new attempt to calculate turnover in a 'simple' way
+
+	# we start with PARL, to build an 'ELECtion' data-frame
+		# this version of PARL already contains:
+			# national parliaments only (level == "NT")
+			# internal r formatted dates for the start and end of the legistlative period
+		head(PARL)
+		
+		# also reduce to only the NR for CH
+			table(PARL$assembly_abb)
+			PARL2 <- PARL[which(!PARL$assembly_abb == "SR"),]
+			table(PARL2$assembly_abb)
+		
+	# create a baseline 'election level' data-frame and an 'election id' (just to avoid mistakes later by accidentally mathcing on parliament_id or so)
+		ELEC <- sqldf("SELECT parliament_id, country_abb, leg_period_start_asdate, leg_period_end_asdate, previous_parliament FROM PARL2")
+		ELEC$election_id <- paste(ELEC$parliament_id,"_elec",sep="")
+	
+	# get the range to count for this election
+	
+		# the start date of which is one week after the start of the previous parliament!
+			resvec <- as.Date(vector())
+			for(i in 1:nrow(PARL2))
+			{
+				if(!is.na(ELEC$previous_parliament[i]))
+				{
+					mypreviousparliament <- ELEC$previous_parliament[i]
+					resvec[i] <- (as.Date(ELEC$leg_period_start_asdate[which(ELEC$parliament_id == mypreviousparliament)]) + weeks(1))
+				} else {
+					resvec[i] <- NA
+				}
+			
+			}
+			ELEC$entry_range_start <- resvec
+		
+		# the end date is a week after the start of the current parliament
+			ELEC$entry_range_end <- ELEC$leg_period_start_asdate + weeks(1)
+			
+	# now, run a query that select all of the people whoms first day was in this period
+	
+		# get rid of standerat!
+			table(NEWC$chamber)
+			NEWC2 <- NEWC[which(!NEWC$chamber == "SR"),]
+			table(NEWC2$chamber)
+			
+			table(LEAV$chamber)
+			LEAV2 <- LEAV[which(!LEAV$chamber == "SR"),]
+			table(LEAV2$chamber)
+	
+		ELNEWC <- sqldf("SELECT ELEC.election_id, NEWC2.*
+					   FROM ELEC LEFT JOIN NEWC2
+					   ON
+					   (
+						(NEWC2.day >= ELEC.entry_range_start)
+						AND
+						(NEWC2.day < ELEC.entry_range_end)
+						AND
+						(NEWC2.country = ELEC.country_abb)
+					   )
+					  ")
+		head(ELNEWC)
+		tail(ELNEWC)
+		nrow(ELNEWC)
+		length(unique(ELNEWC$pers_id))
+		table(is.na(ELNEWC$pers_id)) 
+		6442 + 24 # finally matches
+		
+		# some first inspections
+		table(ELNEWC$election_id)
+	
+	# and the last day
+		
+		ELLEAV <- sqldf("SELECT ELEC.election_id, LEAV2.*
+					   FROM ELEC LEFT JOIN LEAV
+					   ON
+					   (
+						(LEAV2.day > ELEC.entry_range_start)
+						AND
+						(LEAV2.day <= ELEC.entry_range_end)
+						AND
+						(LEAV2.country = ELEC.country_abb)
+					   )
+					  ")
+		head(ELLEAV)
+		tail(ELLEAV)
+		nrow(ELLEAV)
+		length(unique(ELLEAV$pers_id))
+		table(is.na(ELLEAV$pers_id))
+		
+		# one proper duplicate?
+		duplicated(ELLEAV$pers_id)
+		ELLEAV[which(duplicated(ELLEAV$pers_id)),] # all NAs. so looking good
+		
+		# and some inspection
+		table(ELNEWC$election_id) 
+		table(ELLEAV$election_id) # we can already see that these numbers do not match up?
+		
+	# merge them together for inspection e.t.c.
+	
+	
+	# and the aggregation
+		NRNE <- sqldf("SELECT election_id, COUNT(election_id) as 'nr_new'
+				FROM ELNEWC
+				GROUP BY election_id
+				")
+		
+		NRLE <- sqldf("SELECT election_id, COUNT(election_id) as 'nr_leave'
+				FROM ELLEAV
+				GROUP BY election_id
+				")
+			
 	
  ### putting all of this together in graphs
 	newyname <- c("Average age of parliamentarians")
