@@ -239,7 +239,7 @@
 	ylabels <- c(0,10,20,30,40,50)
 	yrange <- c(0,0.5)
 		
-	xrange <- c(as.Date("1950-01-01",origin="1970-01-01"),as.Date("2016-12-31",origin="1970-01-01"))
+	xrange <- c(as.Date("1955-01-01",origin="1970-01-01"),as.Date("2016-12-31",origin="1970-01-01"))
 	
 	# the breaks and labels depend on when the elections are
 		xbreaks_CHNR <- UNI_CHNR$election_date_asdate
@@ -593,16 +593,53 @@
 				FROM ELNEWC
 				GROUP BY election_id
 				")
+		NRNE$parliament_id <- gsub("_elec", "", NRNE$election_id)
+		NRNE$country <- substr(NRNE$election_id,0,2)
 		
 		NRLE <- sqldf("SELECT election_id, COUNT(election_id) as 'nr_leave'
 				FROM ELLEAV
 				GROUP BY election_id
 				")
-			
+
+	# merge back in the election date for this line can be plotted
+		NRNE <- sqldf("SELECT NRNE.*, PARL.leg_period_start
+					   FROM NRNE LEFT JOIN PARL
+					   ON
+					   NRNE.parliament_id = PARL.parliament_id
+					")
+		NRNE$leg_period_start_rdate <- as.Date(as.character(NRNE$leg_period_start),format=c("%d%b%Y"))
+		
+	# also merge in the size of the parliament on this day
+		head(PARLDAILY)
+		
+		PARLDAILY2 <- PARLDAILY[which(!PARLDAILY$assembly_abb == "SR"),]
+		
+		PARLDAILY2[which(PARLDAILY2$day == as.Date("1972-12-13",origin="1970-01-01")),]
+		
+		NRNE <- sqldf("SELECT NRNE.*, PARLDAILY2.seats
+					   FROM NRNE LEFT JOIN PARLDAILY2
+					   ON
+					   NRNE.leg_period_start_rdate = PARLDAILY2.day
+					   AND
+					   NRNE.country = country_abb
+					")
+		
+		NRNE$prop_new <- NRNE$nr_new / NRNE$seats
+		
+		# time restriction
+		NRNE <- NRNE[which(NRNE$leg_period_start_rdate > xrange[1]),]
+		NRNE <- NRNE[which(NRNE$leg_period_start_rdate < xrange[2]),]
+		
+		NRNE_CH <- NRNE[which(NRNE$country == "CH"),]
+		NRNE_DE <- NRNE[which(NRNE$country == "DE"),]
+		NRNE_NL <- NRNE[which(NRNE$country == "NL"),]
+		
 	
  ### putting all of this together in graphs
 	newyname <- c("Average age of parliamentarians")
-	newyrange <- c(35,70) 
+	newyrange <- c(40,60) 
+	size <- newyrange[2] - newyrange[1]
+	bottomvalue <- newyrange[1]
 	
 	# xbreaks are taken from above!
 	
@@ -611,41 +648,63 @@
 	# CH
 		ggplot(NULL) +
 			#  geom_point(data=INDIVIDUAL_CHNR, aes(x=day, y=age),size=0.2,color="blue",position="jitter") +
-			  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=age)) +
-			  geom_line(data=PARLDAILY_CHNR_RED, aes(x=day, y=age),color="blue",size=1.2) +
-			  geom_line(data=NEWC_CHNR_PAR, aes(x=day, y=age),color="green",size=1.1) +
-			  geom_line(data=LEAVE_CHNR_PAR, aes(x=day, y=age),color="brown",size=1.1) +
+			#  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=age,color="test")) +
+			  geom_line(data=PARLDAILY_CHNR_RED, aes(x=day, y=age,color="Average age"),size=1.2) +
+			  geom_smooth(data=PARLDAILY_CHNR_RED,aes(x=day, y=age,color="Average age"),method='loess',formula=y~x) +
+			  geom_line(data=NRNE_CH,aes(x=leg_period_start_rdate,y=prop_new*size+bottomvalue,color="Proportion of newcomers"),size=1.1) +
+			  geom_smooth(data=NRNE_CH,aes(x=leg_period_start_rdate,y=prop_new*size+bottomvalue,color="Proportion of newcomers"),method='loess',formula=y~x) +
+			  # and add an axis for this
+		#	  geom_line(data=NEWC_CHNR_PAR, aes(x=day, y=age,color=),color="green",size=1.1) +
+		#	  geom_line(data=LEAVE_CHNR_PAR, aes(x=day, y=age),color="brown",size=1.1) +
 			#  geom_point(data=NEWC, aes(x=day, y=age),size=2,color="green",position="jitter") +
-			  scale_y_continuous(name=newyname,limits=newyrange) +
+			  scale_y_continuous(name=newyname,limits=newyrange,sec.axis = sec_axis(~(.-bottomvalue)/size, name = "Prop. new parliamentarians")) +
 			  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
 			  theme_grey(base_size = 15) +
 			  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+			  
+			  mean(LEAVE_CHNR_PAR$age)
+			  mean(NEWC_CHNR_PAR$age)
+			  mean(LEAVE_CHNR_PAR$age) - mean(NEWC_CHNR_PAR$age)
 	
 	# DE
 		ggplot(NULL) +
-			  geom_line(data=PARLDAILY_DE, aes(x=day, y=age),size=1) +
-			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age),color="blue",size=1.3) +
-			  geom_line(data=NEWC_DE_PAR, aes(x=day, y=age),color="green",size=1.1) +
-			  geom_line(data=LEAVE_DE_PAR, aes(x=day, y=age),color="brown",size=1.1) +
-			  scale_y_continuous(name=newyname,limits=newyrange) +
+			#  geom_line(data=PARLDAILY_DE, aes(x=day, y=age),size=1) +
+			  geom_line(data=PARLDAILY_DE_RED, aes(x=day, y=age,color="Average age"),size=1.3) +
+			  geom_smooth(data=PARLDAILY_DE_RED,aes(x=day, y=age,color="Average age"),method='loess',formula=y~x) +
+			  geom_line(data=NRNE_DE,aes(x=leg_period_start_rdate,y=prop_new*size+bottomvalue,color="Proportion of newcomers"),size=1.1) +
+			  geom_smooth(data=NRNE_DE,aes(x=leg_period_start_rdate,y=prop_new*size+bottomvalue,color="Proportion of newcomers"),method='loess',formula=y~x) +
+		#	  geom_line(data=NEWC_DE_PAR, aes(x=day, y=age),color="green",size=1.1) +
+		#	  geom_line(data=LEAVE_DE_PAR, aes(x=day, y=age),color="brown",size=1.1) +
+			#  scale_y_continuous(name=newyname,limits=newyrange) +
+  			  scale_y_continuous(name=newyname,limits=newyrange,sec.axis = sec_axis(~(.-bottomvalue)/size, name = "Prop. new parliamentarians")) +
 			  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
 			  theme_grey(base_size = 15) +
 			  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+			  
+			  mean(LEAVE_DE_PAR$age)
+			  mean(NEWC_DE_PAR$age)
+			  mean(LEAVE_DE_PAR$age) - mean(NEWC_DE_PAR$age)
 
 	# NL
 		ggplot(NULL) +
-			  geom_line(data=PARLDAILY_NL, aes(x=day, y=age)) +
-			  geom_line(data=PARLDAILY_NL_RED, aes(x=day, y=age),color="blue",size=1.2) +
-			  geom_line(data=NEWC_NL_PAR, aes(x=day, y=age),color="green",size=1.1) +
-			  geom_line(data=LEAVE_NL_PAR, aes(x=day, y=age),color="brown",size=1.1) +
-			  scale_y_continuous(name=newyname,limits=newyrange) +
+			#  geom_line(data=PARLDAILY_NL, aes(x=day, y=age)) +
+			  geom_line(data=PARLDAILY_NL_RED, aes(x=day, y=age,color="Average age"),size=1.2) +
+			  geom_smooth(data=PARLDAILY_NL_RED,aes(x=day, y=age,color="Average age"),method='loess',formula=y~x) +
+			  geom_line(data=NRNE_NL,aes(x=leg_period_start_rdate,y=prop_new*size+bottomvalue,color="Proportion of newcomers"),size=1.1) +
+			  geom_smooth(data=NRNE_NL,aes(x=leg_period_start_rdate,y=prop_new*size+bottomvalue,color="Proportion of newcomers"),method='loess',formula=y~x) +
+		#	  geom_line(data=NEWC_NL_PAR, aes(x=day, y=age),color="green",size=1.1) +
+		#	  geom_line(data=LEAVE_NL_PAR, aes(x=day, y=age),color="brown",size=1.1) +
+			  scale_y_continuous(name=newyname,limits=newyrange,sec.axis = sec_axis(~(.-bottomvalue)/size, name = "Prop. new parliamentarians")) +
 			  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 			  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
 			  theme_grey(base_size = 15) +
 			  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+			  mean(LEAVE_NL_PAR$age)
+			  mean(NEWC_NL_PAR$age)
+			  mean(LEAVE_NL_PAR$age) - mean(NEWC_NL_PAR$age)
 
  #### ELENA her old script below!
  
