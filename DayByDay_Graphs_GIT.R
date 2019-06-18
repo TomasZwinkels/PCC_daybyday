@@ -1186,13 +1186,13 @@ dev.off()
 	
 		ggplot(NULL) +
 			# the age and tenure lines
-			geom_line(data=PARLDAILY_COMB, aes(x=day, y=age,color=country_abb),size=1)  +
-			geom_smooth(data=PARLDAILY_COMB, aes(x=day, y=age,color=country_abb),alpha=1/5,size=0.5)  +
+			geom_line(data=PARLDAILY_COMB, aes(x=day, y=age,linetype=country_abb),size=1)  +
+			geom_smooth(data=PARLDAILY_COMB, aes(x=day, y=age,linetype=country_abb,fill=country_abb),alpha=1/5,size=1,color="black")  +
 			
 			# tenure on a second axis
-			geom_line(data=PARLDAILY_COMB, aes(x=day, y=tenure+35,color=country_abb),size=1,linetype="longdash") +
-			geom_smooth(data=PARLDAILY_COMB, aes(x=day, y=tenure+35,color=country_abb),alpha=1/5,size=0.5,linetype="longdash") +
-			scale_y_continuous(name="Age (years)",sec.axis = sec_axis(~.+35, name = "Tenure (years)")) +
+			geom_line(data=PARLDAILY_COMB, aes(x=day, y=tenure*2+25,linetype=country_abb),size=1,color="blue") +
+			geom_smooth(data=PARLDAILY_COMB, aes(x=day, y=tenure*2+25,linetype=country_abb,fill=country_abb),alpha=1/5,size=0.5,color="blue") +
+			scale_y_continuous(name="Age (years)",sec.axis = sec_axis(~.*2+25, name = "Tenure (years)")) +
 			theme(axis.text=element_text(size=12), axis.title=element_text(size=14)) +
 			theme(axis.title.y = element_text(hjust=0.75))  +
 			
