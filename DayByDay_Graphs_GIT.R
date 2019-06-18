@@ -278,7 +278,7 @@
 		  scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
 		  theme_grey(base_size = 15) +
-		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 
 	
 	#DE
@@ -290,18 +290,18 @@
 		  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
 		  theme_grey(base_size = 15) +
-		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 	  
 	#NL
 	# genderdaily_NL 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender)) +
-		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),color="green") +
+		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),color="green",size=5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
 		  theme_grey(base_size = 15) +
-		  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 
 #put all together and save
 
@@ -311,10 +311,30 @@
 	 #dev.off() 
 
 
+	
+	PARE <- read.csv("PCC/PARE.csv", header = TRUE, sep = ";")
+	POLI <- read.csv("PCC/POLI.csv", header = TRUE, sep = ";")
 
+	PARDATA <- sqldf("SELECT parliament, pers_id, last_name, 
+							 gender, birth_date, birth_place
+					FROM PARE LEFT JOIN POLI
+					WHERE 
+					PARE.pers_id = POLI.pers_id
+				  ")
 
+	head(PARDATA)
+	
+	
+	PAREMERKEL <- PARE[which(PARE$pers_id == "DE_Merkel_Angela_1954"),]
+	head(PAREMERKEL)
 
-
+		PARDATA <- sqldf("SELECT PAREMERKEL.parliament_id, POLI.pers_id, POLI.last_name, POLI.gender, POLI.birth_date, POLI.birth_place_raw
+					FROM PAREMERKEL LEFT JOIN POLI
+					WHERE 
+					PAREMERKEL.pers_id = POLI.pers_id
+				  ")
+				  
+				  
 
  ###############################################################################################################
  # Age per year #
@@ -636,6 +656,14 @@
 		
 	
  ### putting all of this together in graphs
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 	newyname <- c("Average age of parliamentarians")
 	newyrange <- c(40,60) 
 	size <- newyrange[2] - newyrange[1]
@@ -1095,7 +1123,7 @@ dev.off()
 				
 				# CH
 					ggplot(NULL) +
-					  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="from parldaily",size=1))  +
+				#	  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="from parldaily",size=1))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all",size=1.5))  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
 				#	  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties",size=1.01)) +
@@ -1143,8 +1171,37 @@ dev.off()
 			PARTDAILY_DE_MELT$day <- as.Date(PARTDAILY_DE_MELT$value,origin="1970-01-01")
 			
 			ggplot(data=PARTDAILY_DE_MELT,aes(x=day, y=tenure,color="from parldaily"))) +
-		
+	
+	###############################################
+	###### Tenure and age all in one graph ########
+	###############################################
+	
+			PARLDAILY_COMB <- rbind(PARLDAILY_CHNR_RED,PARLDAILY_DE_RED,PARLDAILY_NL_RED)
+			
+			xbreaks_all <- sort(c(xbreaks_CHNR,xbreaks_DE,xbreaks_NL))
+			xlabels_all <- sort(c(xlabels_CHNR,xlabels_DE,xlabels_NL))
 
+			colorpallet <- 
+			scale_colour_manual(values=colorpallet)
+	
+		ggplot(NULL) +
+			# the age and tenure lines
+			geom_line(data=PARLDAILY_COMB, aes(x=day, y=age,color=country_abb),size=1)  +
+			geom_smooth(data=PARLDAILY_COMB, aes(x=day, y=age,color=country_abb),alpha=1/5,size=0.5)  +
+			
+			# tenure on a second axis
+			geom_line(data=PARLDAILY_COMB, aes(x=day, y=tenure+35,color=country_abb),size=1,linetype="longdash") +
+			geom_smooth(data=PARLDAILY_COMB, aes(x=day, y=tenure+35,color=country_abb),alpha=1/5,size=0.5,linetype="longdash") +
+			scale_y_continuous(name="Age (years)",sec.axis = sec_axis(~.+35, name = "Tenure (years)")) +
+			theme(axis.text=element_text(size=12), axis.title=element_text(size=14)) +
+			theme(axis.title.y = element_text(hjust=0.75))  +
+			
+			# layout things
+			 scale_x_date(name="Time",breaks=xbreaks_all,labels=xlabels_all,limits=xrange) +
+			 theme(axis.text.x = element_text(angle = 90, hjust = 1,size=10)) +	 
+			 scale_color_brewer(palette="Dark2")
+			
+		
 ###############################a
 # party switching #
 ###############################
@@ -1380,7 +1437,7 @@ dev.off()
 								ON PBNL.source = PD.partyids
 								")
 				TEMP$colorforparty[which(is.na(TEMP$colorforparty))] <- "#E7D031"
-			{
+			}
 			
 		# getting vectors into the format we need them in
 			
@@ -1406,7 +1463,7 @@ dev.off()
 						}" )
 			
 			# and the plot
-				p <- gvisSankey(PBNL,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=150,height=500))
+				p <- gvisSankey(PBNL,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=500,height=500))
 				plot(p)
 				
 			## plotly alternative! - does not work
@@ -1462,7 +1519,7 @@ dev.off()
 			PBDE$target <- gsub("_NT","",gsub("DE_","",PBDE$target))
 			
 			# and the plot
-				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=150,height=500))
+				p <- gvisSankey(PBDE,from="source",to="target", weight="transitioncount", options = list(sankey=opts,width=300,height=510))
 				plot(p)
 	
 	# sankey diagram for CH
