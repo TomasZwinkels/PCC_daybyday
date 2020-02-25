@@ -1,11 +1,12 @@
 # packages
 
-	install.packages("ggpubr")
+	#install.packages("ggpubr")
 
 	library(sqldf)
 	library(lubridate)
 	library(ggplot2)
 	library(ggpubr)
+	library(stringi)
 	
 # change the language and date formatting to English if it is not already
 	Sys.setenv(LANG = "EN")
@@ -21,14 +22,13 @@
 	
 	# Load PARL
 	PARL = read.csv("./source_csvs/PARL.csv", header = TRUE, sep = ";")
-	summary(PARL)
-	names(PARL)
 	head(PARL)
 
 # first lets get rid of all the Steanderat entries
 	nrow(MPDAYLONG)
 	MPDAYLONG <- MPDAYLONG[which(!grepl("CH_NT-SR",MPDAYLONG$parliament_id,fixed=TRUE)),]
 	nrow(MPDAYLONG)
+	object.size(MPDAYLONG)
 	
  # merge in the leg_period_start for each parliament
  
@@ -38,7 +38,6 @@
 			   ORDER BY pers_id, day
 			 ")
 	head(BU)
-	BU[22700:22720,] # got one, finally
 	
 	# get in the country because it is needed below
 		BU$country <- substr(BU$pers_id,0,2)
@@ -55,16 +54,19 @@
 					 FROM BU
 					 WHERE BU.day = BU.leg_period_start_posix
 					")
-	TEMP$persandparliamentid <- paste(TEMP$pers_id,TEMP$parliament_id,sep="__")
+	TEMP$persandparliamentid <- stri_join(TEMP$pers_id,TEMP$parliament_id,sep="__")
+	gc()
 	head(TEMP)
 					
 	# now we can simpy only include lines of the main data that occur in TEMP as well (if they don't occur in TEMP they are not people that where there on the first day).
-	BU$persandparliamentid <- paste(BU$pers_id,BU$parliament_id,sep="__")
+	BU$persandparliamentid <- stri_join(BU$pers_id,BU$parliament_id,sep="__")
+	gc()
 	head(BU)
 	
 	BURED <- BU[which(BU$persandparliamentid %in% TEMP$persandparliamentid),]
 	BURED$country <- substr(BURED$pers_id,0,2)
 	head(BURED)
+	rm(TEMP) ## %% ##
 	
 	# get the daytotals for 'core members'
 		DAYTOTALS <- as.data.frame(table(BURED$day,BURED$country))
@@ -126,7 +128,7 @@
 
 		# step 1: get a data-frame that contains - for each parliament(!) - the first day you entered this parliament
 			head(MPDAYLONG)
-			MPDAYLONG$fake_parl_episode_id <- paste(MPDAYLONG$pers_id,MPDAYLONG$parliament_id,sep="__")
+			MPDAYLONG$fake_parl_episode_id <- stri_join(MPDAYLONG$pers_id,MPDAYLONG$parliament_id,sep="__")
 		
 			FIRSTPARLDAY <- sqldf("SELECT MPDAYLONG.*, MIN(day) as 'first_day'
 								   FROM MPDAYLONG
@@ -174,7 +176,7 @@
 			table(TEMPB$party_at_start)
 			table(is.na(TEMPB$party_at_start)) # ! so ! note for later that there is a bit of missingness here that needs to be dealth with, ! (excluded these cases) below already for the normalisation accross countries!
 			MPDAYLONG <- TEMPB
-			rm(TEMPB)
+		#	rm(TEMPB)
 			
 			# is it possible that at this stage some MPs get described mutiple parties?
 			
@@ -195,9 +197,9 @@
 			head(TEMPC)
 			tail(TEMPC)
 			table(TEMPC$party_now)
-			table(is.na(TEMPC))
+			#table(is.na(TEMPC))
 			MPDAYLONG <- TEMPC
-			rm(TEMPC)
+		#	rm(TEMPC)
 		
 		# step 5: select the stable party members (i.e.: people that have the same party on this day as they had when they entered parliament)
 			#	STAPAME <- sqldf("SELECT MPDAYLONG.*
@@ -214,7 +216,8 @@
 			
 				# investigating this issues
 					head(STAPAME)
-					STAPAME$pers_id_day <- paste(STAPAME$pers_id,STAPAME$day,sep="_")
+					STAPAME$pers_id_day <- stri_join(STAPAME$pers_id,STAPAME$day,sep="_")
+					gc()
 					length(STAPAME$pers_id_day)
 					length(unique(STAPAME$pers_id_day)) # so, there are indeed doubles, lets find one:
 					
@@ -234,6 +237,7 @@
 					{
 						# get subset
 						RED <- STAPAMEDB[which(STAPAMEDB$pers_id_day == pers_id_day_vec[i]),]
+						rm(STAPAMEDB)
 						
 						# check of more then one party at start occurs
 						if (length(table(RED$party_at_start))>1) 
@@ -279,6 +283,8 @@
 				
 				# is the number of stable party members to high? > yes it is!
 				SPMTABCHINSP <- SPMTAB[which(SPMTAB$country == "CH" & SPMTAB$date > as.Date("2001-01-01") & SPMTAB$date < as.Date("2002-01-01")),]
+				rm(SPMTAB)
+				gc()
 				SPMTABCHINSP # so, the numbers are indeed to high here (larger then 200 -- why?!)
 				
 				# and/or is the number of all party members to small? > this looks alright!
@@ -293,16 +299,22 @@
 		# step 7, and a reduced EVERYBODYCOUNTS data-frame that does not include days for which either the party at start of party now is missing in MPDAYLONG
 		
 			MPDAYLONGMISSINGCASES <- MPDAYLONG[which(is.na(MPDAYLONG$party_at_start) | is.na(MPDAYLONG$party_now)),]
-			MPDAYLONGMISSINGCASES$persidandday <- paste(MPDAYLONGMISSINGCASES$pers_id,as.character(MPDAYLONGMISSINGCASES$day),sep="")
+			MPDAYLONGMISSINGCASES$persidandday <- stri_join(MPDAYLONGMISSINGCASES$pers_id,as.character(MPDAYLONGMISSINGCASES$day),sep="")
+			gc()
 			head(MPDAYLONGMISSINGCASES)
 			nrow(MPDAYLONGMISSINGCASES)
+			rm(MPDAYLONG)
+			gc()
 			
-			BU$persidandday <- paste(BU$pers_id,as.character(BU$day),sep="")
+			BU$persidandday <- stri_join(BU$pers_id,as.character(BU$day),sep="")
+			gc()
 			head(BU)
 			
 			nrow(BU)
 			BURED2 <- BU[which(!(BU$persidandday %in% MPDAYLONGMISSINGCASES$persidandday)),]
 			nrow(BURED2) # indeed some reduction
+			rm(MPDAYLONGMISSINGCASES)
+			gc()
 			
 			# issue with Staenderat cases still left in here? 
 			table(BURED2$parliament_id) # nope, does not seem to be the problem
@@ -316,9 +328,11 @@
 				EVERYBODYCOUNTSRED[70000:70010,]
 				tail(EVERYBODYCOUNTSRED)
 				head(EVERYBODYCOUNTSRED)
+				rm(BURED2)
+				gc()
 				
 			# merge these in also here to calculate percentages
-					TEMPD<- sqldf("SELECT SPMTAB.*, EVERYBODYCOUNTSRED.numberofmps 	
+					TEMPD <- sqldf("SELECT SPMTAB.*, EVERYBODYCOUNTSRED.numberofmps 	
 						FROM SPMTAB LEFT JOIN EVERYBODYCOUNTSRED
 						WHERE 
 							(
@@ -327,6 +341,8 @@
 							SPMTAB.country = EVERYBODYCOUNTSRED.country
 							)
 						")
+					rm(EVERYBODYCOUNTSRED)
+					gc()
 		
 			# calculate the percentage
 				TEMPD$percentagestayingpartymembers <- (TEMPD$numberofpartystablemps / TEMPD$numberofmps) * 100
@@ -336,6 +352,8 @@
 			
 			# reduce to drop very recent and very old observations
 				TEMPE <- TEMPD[which(TEMPD$date < as.Date("2017-12-31") & TEMPD$date > as.Date("1950-01-01")),]
+				rm(TEMPD)
+				gc()
 				nrow(TEMPE)
 				head(TEMPE)
 				tail(TEMPE)
@@ -346,19 +364,6 @@
 			   ylab("%  MPs in same party as when they entered") +
 			   theme_pubclean(base_size = 20) +
 			   coord_trans(y="log2")
-			
-			# inspect some of the weird date ranges
-			tail(TEMPE)
-			TEMPE[which(TEMPE$country == "CH" 
-					 & TEMPE$date < as.Date("2010-12-31")
-					 & TEMPE$date > as.Date("2000-01-01")
-					 ),]
-			# probably has to do with SR?
-			table(MPDAYLONG$parliament_id)
-				
-
-				sapply(EVERYBODYCOUNTSRED, class)
-				sapply(SPMTAB, class)
 				
 	#########################################
 	### party group / faction membership
@@ -416,15 +421,222 @@
 							
 							# in a loop
 							
+							length_vec <- vector()
+							faction_simplest_vec <- vector()
 							
+							for(i in 1:nrow(RESEFAC))
+							{
+								length_vec[i] <- length(table(strsplit(RESEFAC$faction_id_core_simple[i],";",fixed=TRUE))) # are there combined values?
+								faction_simplest_vec[i] <- names(table(strsplit(RESEFAC$faction_id_core_simple[i],";",fixed=TRUE)))[1] # select the first value
+							}
+							table(length_vec) # only one problem case
+							table(faction_simplest_vec)
+
+							# write this simplified verson away
+							RESEFAC$faction_simplest <- faction_simplest_vec
+														
+				# step 2: for the pers_id and day combinations in TEMPA (MPDAYLONG), get the 'faction_id_core' they where in
+					
+					# get the data that I need for this cleaned
+					
+						# and deal with censoring, incomplete dates and make internal R-date
+							RESEFAC$res_entry_end <- gsub("[[rcen]]","",RESEFAC$res_entry_end,fixed=TRUE)
+							RESEFAC$res_entry_start <- gsub("[[lcen]]","",RESEFAC$res_entry_start,fixed=TRUE)
+							RESEFAC$res_entry_start_dateformat <- as.Date(as.POSIXct(RESEFAC$res_entry_start,format=c("%d%b%Y"),tz="CET"))
+							RESEFAC$res_entry_end_dateformat <- as.Date(as.POSIXct(RESEFAC$res_entry_end,format=c("%d%b%Y"),tz="CET"))
+						
+							# later dealing with incomplete dates should be added here!
+							table(is.na(RESEFAC$res_entry_start_dateformat))
+							table(is.na(RESEFAC$res_entry_end_dateformat))
+							dput(RESEFAC$res_entry_start_dateformat[1])
+							dput(RESEFAC$res_entry_end_dateformat[1])
+							dput(TEMPA$first_day_asdate[1])
+
+							RESEFAC[which(is.na(RESEFAC$res_entry_end_dateformat)),]
 							
+							head(RESEFAC)
 							
-				# step 2: for the pers_id and day combinations, get the 'faction_id_core' they where in
+							# temp fix
+							
+							TEMPA$first_day_asdate <- as.Date(TEMPA$first_day_asdate)
+							TEMPA$pers_id <- as.character(TEMPA$pers_id)
+							RESEFAC$pers_id <- as.character(RESEFAC$pers_id) 
+							
+							typeof(TEMPA$first_day_asdate)
+							typeof(RESEFAC$res_entry_start_dateformat)
+							typeof(RESEFAC$res_entry_end_dateformat)
+							
+							typeof(TEMPA$pers_id)
+							typeof(RESEFAC$pers_id)
+					
+				###
+				## get the faction at the start
+				###
 				
-				# step 3: remove potential duplicates (see above)
+					PGST <- sqldf("
+								SELECT TEMPA.*, RESEFAC.faction_simplest as 'faction_at_start'
+								FROM TEMPA LEFT JOIN RESEFAC
+								ON 
+									TEMPA.pers_id = RESEFAC.pers_id
+									AND
+										(
+										TEMPA.first_day_asdate >= RESEFAC.res_entry_start_dateformat
+										AND
+										TEMPA.first_day_asdate <= RESEFAC.res_entry_end_dateformat
+										)
+								",dbname=tempfile())
+					nrow(PGST)
+					head(PGST)
+				#	table(PGST$faction_at_start)
+				#	table(is.na(PGST$faction_at_start)) # quite a bit is missing cases still (in percentages:)
+				#	table(is.na(PGST$faction_at_start))[2] / (table(is.na(PGST$faction_at_start))[2]+table(is.na(PGST$faction_at_start))[1]) # about 17%
+					
+					
+					# lets try one manual match
+				#	RESEFAC[which(RESEFAC$pers_id == "CH_Abate_Fabio_1966"),]
+				#	RESEFAC[which(RESEFAC$pers_id == "CH_Abate_Fabio_1966" & as.Date("2000-09-25") >= RESEFAC$res_entry_start_dateformat & as.Date("2000-09-25") <= RESEFAC$res_entry_end_dateformat),]
 				
+				###
+				## get the faction now
+				###
 				
-			
-			
+					PGST <- sqldf("
+								SELECT PGST.*, RESEFAC.faction_simplest as 'faction_now'
+								FROM PGST LEFT JOIN RESEFAC
+								ON 
+									PGST.pers_id = RESEFAC.pers_id
+									AND
+										(
+										PGST.day >= RESEFAC.res_entry_start_dateformat
+										AND
+										PGST.day <= RESEFAC.res_entry_end_dateformat
+										)
+								")
+					head(PGST)
+					nrow(PGST)
+
+				## get rid of potential duplicates (just as above)
+					
+					# fixing the issue of double party membership days
+					
+						# inspect
+						#	PGST$pers_id_day <- paste(PGST$pers_id,PGST$day,sep="_")
+							PGST$pers_id_day <- stri_join(PGST$pers_id,PGST$day,sep="_")
+							gc()
+							nrow(PGST)
+							length(unique(PGST$pers_id_day)) # couple of cases
+					
+						# fix
+							PGST <- PGST[!duplicated(PGST$pers_id_day), ]
+							nrow(PGST)
+							
+				## get a data-frame with only these days in which faction_as_start and faction_now are the same
+					STAFAME <- PGST[which(PGST$faction_now == PGST$faction_at_start),]
+					nrow(STAFAME)
+					head(STAFAME)
+				
+				#################
+				## step 6. tabulate the whole thing to get numbers per day for the stable faction members as well as for a (reduced because of missing faction membership information!) sample of all of the members
+				#################
+				
+					# get the counts tabulated (per day and country) for the stables members
+					STAFAME$country <- substr(STAFAME$pers_id,0,2)
+					FAMETAB <- as.data.frame(table(STAFAME$day,STAFAME$country))
+					gc()
+					colnames(FAMETAB) <- c("date","country","numberofpartygroupstablemps")
+					FAMETAB$date <- as.Date(FAMETAB$date)
+					head(FAMETAB)
+					tail(FAMETAB)
+					FAMETAB[20000:20010,]
+					FAMETAB[50000:50010,]
+					
+					# get the count tabulated (per day and country) for the all the members
+					
+						##  first we need tp get 'all mps' data with only the none-missing cases
+				
+							# get a data-frame with only those cases for which we do NOT have this info
+							MPDAYLONGMISSINGFAMECASES <- PGST[which(is.na(PGST$faction_at_start) | is.na(PGST$faction_now)),]
+							MPDAYLONGMISSINGFAMECASES$persidandday <- stri_join(MPDAYLONGMISSINGFAMECASES$pers_id,as.character(MPDAYLONGMISSINGFAMECASES$day),sep="")
+							gc()
+							head(MPDAYLONGMISSINGFAMECASES)
+							nrow(MPDAYLONGMISSINGFAMECASES)
+							
+							# now get rid of these cases
+								
+								# we first need to be able to match them
+									PGST$persidandday <- stri_join(PGST$pers_id,as.character(PGST$day),sep="")
+									gc()
+									head(PGST)
+							
+								# then we can get rid of them
+									nrow(PGST)
+									PGSTRED <- PGST[which(!(PGST$persidandday %in% MPDAYLONGMISSINGFAMECASES$persidandday)),]
+									nrow(PGSTRED) # indeed some reduction
+					
+						## then we can calculate the counts
+							PGSTRED$country <- substr(PGSTRED$pers_id,0,2)
+							table(PGSTRED$country)
+							FAMETABALL <- as.data.frame(table(PGSTRED$day,PGSTRED$country))
+							gc()
+							colnames(FAMETABALL) <- c("date","country","totalnumberofmps")
+							FAMETABALL$date <- as.Date(FAMETABALL$date)
+							head(FAMETABALL)
+							tail(FAMETABALL)
+							FAMETABALL[20000:20010,]
+							FAMETABALL[50000:50010,]
+				
+				#################
+				## step 7. merge these two data together
+				#################				
+				
+				# merge these in also here to calculate percentages
+					nrow(FAMETAB)
+					head(FAMETAB)
+					head(FAMETABALL)
+					
+					dput(FAMETAB$date[1])
+					dput(FAMETABALL$date[1])
+				
+					FAMECOUNTS <- sqldf("SELECT FAMETAB.*, FAMETABALL.totalnumberofmps 	
+							FROM FAMETAB LEFT JOIN FAMETABALL
+							WHERE 
+							(
+							FAMETAB.date = FAMETABALL.date 
+							AND
+							FAMETAB.country = FAMETABALL.country
+							)
+						")
 		
-		
+					nrow(FAMECOUNTS) # same number
+						
+				#################
+				## step 8. graphic!
+				#################			
+						
+						# calculate the percentage
+							FAMECOUNTS$percentagestayingpartygroupmembers <- (FAMECOUNTS$numberofpartygroupstablemps / FAMECOUNTS$totalnumberofmps) * 100
+							summary(FAMECOUNTS$percentagestayingpartygroupmembers)
+							hist(FAMECOUNTS$percentagestayingpartygroupmembers)
+						
+						# reduce to drop very recent and very old observations
+							FAMECOUNTSREC <- FAMECOUNTS[which(FAMECOUNTS$date < as.Date("2017-12-31") & FAMECOUNTS$date > as.Date("1950-01-01")),]
+							nrow(FAMECOUNTSREC)
+							head(FAMECOUNTSREC)
+							tail(FAMECOUNTSREC)
+							
+						# add the dutch party data in here!
+						
+							head(TEMPE)
+							table(TEMPE$country)
+							TEMPENL <- TEMPE[which(TEMPE$country == "NL"),]
+							nrow(TEMPENL)
+							head(TEMPENL)
+							
+							FAMECOUNTSRECWITHNL <- rbind(FAMECOUNTSREC,TEMPENL)
+							
+						ggplot(FAMECOUNTSREC, aes(date, percentagestayingpartygroupmembers, color = country)) + 
+						   geom_line()+
+						   facet_grid(country ~ .) +
+						   ylab("%  MPs in same party group as when they entered") +
+						   theme_pubclean(base_size = 20) 
+				
