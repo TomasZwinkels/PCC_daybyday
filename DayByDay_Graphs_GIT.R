@@ -872,8 +872,6 @@
  scale_x_discrete(breaks=seq(1945, 2017, 5))+
    ylim(40,65)
  
- 
- 
  #NL
 ageyearly_NL <- ggplot(NULL,
                           aes(x=year, y=age)) +
@@ -908,8 +906,6 @@ dev.off()
 #########################################################################################################
 
 	#### so, for this Oliver his PARTDAILY data-frame can be used
-	
-		
 	
 		## step 1: define what parties are 'established' when. 
 			# So, lets start with simply saying that a party is established when it had seats in the last two parliaments. 
@@ -1202,7 +1198,7 @@ dev.off()
 			
 				# lets merge the election dates in here as well, because 'WHERE' is used here instead of 'ON' this also reduces the data to these dates
 				PARLDAILY$parliament_id <- as.character(PARLDAILY$parliament_id)
-				GGDATRED <- sqldf("SELECT GGDAT.*, PARL.leg_period_start_asdate, PARL.parliament_id
+				GGDATRED <- sqldf("SELECT GGDAT.*, PARL.leg_period_start_asdate,PARL.parliament_id
 						   FROM GGDAT LEFT JOIN PARL
 						   WHERE
 						   (
@@ -1268,8 +1264,8 @@ dev.off()
 					ggplot(NULL) +
 					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily",size=1))  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all",size=1.5))  +
-					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
-					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
+				#	  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
+				#	  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
 				#	  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
 					  scale_x_date(name="Dutch Tweede-Kamer at first day in session",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
