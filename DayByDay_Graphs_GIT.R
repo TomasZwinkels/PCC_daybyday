@@ -731,11 +731,12 @@
 			#  geom_point(data=NEWC, aes(x=day, y=age),size=2,color="green",position="jitter") +
 		#	  scale_y_continuous(name=newyname,limits=newyrange,sec.axis = sec_axis(~(.-bottomvalue)/size, name = "Prop. new parliamentarians")) +
 			  scale_x_date(name="Time, Swiss Nationalrat elections",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
-			  scale_y_continuous(limits = c(45, 60)) +
+			  scale_y_continuous(limits = c(44, 60)) +
 			  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
 			  theme_grey(base_size = 15) +
 			  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-			  theme_pubclean(base_size = 20) 
+			  theme_pubclean(base_size = 20) +
+			  ylab("average age at start of term")
 			  
 			  mean(LEAVE_CHNR_PAR$age)
 			  mean(NEWC_CHNR_PAR$age)
@@ -753,11 +754,12 @@
 			#  scale_y_continuous(name=newyname,limits=newyrange) +
   		#	  scale_y_continuous(name=newyname,limits=newyrange,sec.axis = sec_axis(~(.-bottomvalue)/size, name = "Prop. new parliamentarians")) +
 			  scale_x_date(name="Time, German Bundestag elections",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
-			  scale_y_continuous(limits = c(45, 60)) +
+			  scale_y_continuous(limits = c(44, 60)) +
 			  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
 			  theme_grey(base_size = 15) +
 			  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-			  theme_pubclean(base_size = 20) 
+			  theme_pubclean(base_size = 20) +
+			  ylab("average age at start of term")
 			  
 			  mean(LEAVE_DE_PAR$age)
 			  mean(NEWC_DE_PAR$age)
@@ -815,11 +817,12 @@
 		#	  geom_line(data=LEAVE_NL_PAR, aes(x=day, y=age),color="brown",size=1.1) +
 		#	  scale_y_continuous(name=newyname,limits=newyrange,sec.axis = sec_axis(~(.-bottomvalue)/size, name = "Prop. new parliamentarians")) +
 			  scale_x_date(name="Time, Dutch Tweede Kamer elections",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
-			  scale_y_continuous(limits = c(45, 60)) +
+			  scale_y_continuous(limits = c(44, 60)) +
 			  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
 			  theme_grey(base_size = 15) +
 			  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-			  theme_pubclean(base_size = 20) 
+			  theme_pubclean(base_size = 20) +
+			  ylab("average age at start of term")
 
 			  mean(LEAVE_NL_PAR$age)
 			  mean(NEWC_NL_PAR$age)
@@ -1154,6 +1157,14 @@ dev.off()
 				uniquedaycountryvec == uniquedaycountryvec3 # (any none existent days?), yes about 19000 in fact....
 				uniquedaycountryvec[which(!uniquedaycountryvec %in% uniquedaycountryvec3)] # right, so this is ..
 				
+				head(PARTDAILY_NEST)
+				
+				# lets remove all observations of party groups with only one member?
+				nrow(PARTDAILY_NEST)
+				PARTDAILY_NEST <- PARTDAILY_NEST[which(PARTDAILY_NEST$seats > 1),]
+				nrow(PARTDAILY_NEST)
+				
+				
 					resvec4 <- vector()
 					pb <- txtProgressBar(min = 1, max = length(uniquedaycountryvec3), style = 3)
 					for(i in 1:length(uniquedaycountryvec3))
@@ -1214,10 +1225,14 @@ dev.off()
 				GGDATRED$averagetenure <- as.numeric(GGDATRED$averagetenure)
 				GGDATRED$averagetenure_est <- as.numeric(GGDATRED$averagetenure_est)
 				GGDATRED$averagetenure_nest <- as.numeric(GGDATRED$averagetenure_nest)
+				head(GGDATRED)
 				
 				GGDAT_CH <- GGDATRED[which(GGDATRED$country == "CH"),]
 				GGDAT_DE <- GGDATRED[which(GGDATRED$country == "DE"),]
 				GGDAT_NL <- GGDATRED[which(GGDATRED$country == "NL"),] 
+				
+				
+				head(GGDAT_CH)
 				
 				yrangehere <- c(0,12)
 				
@@ -1238,39 +1253,59 @@ dev.off()
 				
 				# CH NR
 					ggplot(NULL) +
-				#	  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="from parldaily",size=1))  +
-					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all",size=1.5))  +
-					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
-				#	  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties",size=1.01)) +
-					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
-					  scale_x_date(name="Swiss Nationalrat (day by day / at first day in session)",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
+					  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=tenure,color="all daily"),size=0.6)  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,color="all parties"),size=1.1)  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,color="established parties"),size=1.1)  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,color="not established parties"),size=1.1) +
+					  scale_y_continuous(name="Average years tenure at start of term",limits=yrangehere) +
+					  scale_x_date(name="Swiss Nationalrat (at first day in session)",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
-					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+					  labs(colour="among..") +
+					  theme_pubclean(base_size = 20)
+					  
+					  # so, just some inspection
+						# what where in 1995 and 1999 in Switserland the none-established parties?
+						table(PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1995"),]$party_id_national)
+						table(PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1999"),]$party_id_national)
+						
+						# and how many members did they have?
+						head(PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1995"),])
+						table(PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1995"),]$seats,PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1995"),]$party_id_national) # all only one seat... 
+						
+						# what does that look like for earlier years?
+						table(PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1987"),]$seats,PARTDAILY_NEST[which(PARTDAILY_NEST$parliament_id  == "CH_NT-NR_1987"),]$party_id_national) # all only one seat... 
+						
 					  
 				# DE # for Germany the line match with PARLDAILY is bang on!
 					ggplot(NULL) +
-					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,color="from parldaily",size=1))  +
-					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all",size=1.5))  +
-					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
-				#	  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties")) +
-					  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
+					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,color="all daily"),size=0.6)  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,color="all parties"),size=1.1)  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,color="established parties"),size=1.1)  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,color="not established parties"),size=1.1) +
+					  scale_y_continuous(name="Average years tenure at start of term",limits=yrangehere) +
 					  scale_x_date(name="German Bundestag at first day in session",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
-					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+					  labs(colour="among..") +
+					  theme_pubclean(base_size = 20)
 					  
 				# NL
 					ggplot(NULL) +
-					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="from parldaily",size=1))  +
-					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all",size=1.5))  +
-				#	  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties",size=1.1))  +
-				#	  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties")) +
-				#	  scale_y_continuous(name="Average years in parliament before",limits=yrangehere) +
+					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,color="all daily"),size=0.6)  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,color="all parties"),size=1.1)  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,color="established parties"),size=1.1)  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,color="not established parties"),size=1.1) +
+					  scale_y_continuous(name="Average years tenure at start of term",limits=yrangehere) +
 					  scale_x_date(name="Dutch Tweede-Kamer at first day in session",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
 					  theme_grey(base_size = 15) +
-					  theme(axis.text.x = element_text(angle = 45, hjust = 1))	
+					  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+					  labs(colour="among..") +
+					  theme_pubclean(base_size = 20)
+					  
 				
 		# for Germany (just for Germany for now) lets also try a disaggregation to the party level?
 				 
