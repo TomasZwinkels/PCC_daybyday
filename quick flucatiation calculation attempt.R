@@ -1,12 +1,16 @@
 # packages
 
 	#install.packages("ggpubr")
+	#install.packages("tidyverse")
+	install.packages("purrr")
 
 	library(sqldf)
 	library(lubridate)
 	library(ggplot2)
 	library(ggpubr)
 	library(stringi)
+	library(purrr)
+	library(tidyverse)
 	
 # change the language and date formatting to English if it is not already
 	Sys.setenv(LANG = "EN")
@@ -24,15 +28,15 @@
 	PARL = read.csv("./source_csvs/PARL.csv", header = TRUE, sep = ";")
 	head(PARL)
 
-# first lets get rid of all the Steanderat entries
+# first lets get rid of all the Steanderat entries < this needs to change, 
 	nrow(MPDAYLONG)
-	MPDAYLONG <- MPDAYLONG[which(!grepl("CH_NT-SR",MPDAYLONG$parliament_id,fixed=TRUE)),]
+#	MPDAYLONG <- MPDAYLONG[which(!grepl("CH_NT-SR",MPDAYLONG$parliament_id,fixed=TRUE)),]
 	nrow(MPDAYLONG)
 	object.size(MPDAYLONG)
 	
  # merge in the leg_period_start for each parliament
  
-	BU <- sqldf("SELECT MPDAYLONG.*, PARL.leg_period_start
+	BU <- sqldf("SELECT MPDAYLONG.*, PARL.leg_period_start, PARL.assembly_abb
 			   FROM MPDAYLONG LEFT JOIN PARL
 			   ON MPDAYLONG.parliament_id = PARL.parliament_id
 			   ORDER BY pers_id, day
@@ -41,6 +45,11 @@
 	
 	# get in the country because it is needed below
 		BU$country <- substr(BU$pers_id,0,2)
+		
+	# get in NR or SR
+		BU$house <- ifelse((BU$assembly_abb == "TK" | BU$assembly_abb == "BT" | BU$assembly_abb == "NR"),"lower house","upper house")
+		table(BU$house)
+		table(BU$assembly_abb,BU$house)
 	
 	# get the correct internal r-date format
 		BU$leg_period_start_posix <- as.Date(as.POSIXct(as.character(BU$leg_period_start),format=c("%d%b%Y")))
@@ -69,17 +78,22 @@
 	rm(TEMP) ## %% ##
 	
 	# get the daytotals for 'core members'
-		DAYTOTALS <- as.data.frame(table(BURED$day,BURED$country))
+		DAYTOTALS <- as.data.frame(table(BURED$day,BURED$country)) ### THIS NEEDS TO CHANGE
+		TESTING <- as.data.frame(BURED %>% count(day, country, house)) ## DOES THIS GIVE THE SAME RESULT? - yes, it seems to, and it also runs a lot faster!
+		
+		head(DAYTOTALS)
+		head(TESTING)
+		
 		DAYTOTALS[1000:10010,]
 		tail(DAYTOTALS)
 		
-		colnames(DAYTOTALS) <- c("date","country","frequency")
+		colnames(DAYTOTALS) <- c("date","country","house","frequency")
 		head(DAYTOTALS)
 		DAYTOTALS$date <- as.Date(DAYTOTALS$date)
 	
 	# also get the daytotals for all members
-		EVERYBODYCOUNTS <- as.data.frame(table(BU$day,BU$country))
-		colnames(EVERYBODYCOUNTS) <- c("date","country","numberofmps")
+		EVERYBODYCOUNTS <- as.data.frame(table(BU$day,BU$country)) ### THIS NEEDS TO CHANGE
+		colnames(EVERYBODYCOUNTS) <- c("date","country","house","numberofmps")
 		EVERYBODYCOUNTS$date <- as.Date(EVERYBODYCOUNTS$date)
 		EVERYBODYCOUNTS[20000:20010,]
 		EVERYBODYCOUNTS[50000:50010,]
