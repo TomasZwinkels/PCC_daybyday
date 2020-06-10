@@ -2,7 +2,7 @@
 
 	#install.packages("ggpubr")
 	#install.packages("tidyverse")
-	install.packages("purrr")
+	#install.packages("purrr")
 
 	library(sqldf)
 	library(lubridate)
@@ -21,7 +21,7 @@
 	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 
  # load the data
-	load("Complete_Daily_MP_Data_2019-06-04_1444.Rdata")
+	load("Complete_Daily_MP_Data_2019-11-26_1232.Rdata") # this was the older version 'Complete_Daily_MP_Data_2019-06-04_1444.Rdata' before
 	head(MPDAYLONG)
 	
 	# Load PARL
@@ -33,6 +33,8 @@
 #	MPDAYLONG <- MPDAYLONG[which(!grepl("CH_NT-SR",MPDAYLONG$parliament_id,fixed=TRUE)),]
 	nrow(MPDAYLONG)
 	object.size(MPDAYLONG)
+	head(MPDAYLONG)
+	table(MPDAYLONG$parliament_id)
 	
  # merge in the leg_period_start for each parliament
  
@@ -50,6 +52,30 @@
 		BU$house <- ifelse((BU$assembly_abb == "TK" | BU$assembly_abb == "BT" | BU$assembly_abb == "NR"),"lower house","upper house")
 		table(BU$house)
 		table(BU$assembly_abb,BU$house)
+		
+			# \\ start 'debugging'
+			
+				table(is.na(BU$house)) # why 213k missings
+				nrow(MPDAYLONG)
+				table(is.na(BU$assembly_abb)) # why 213k missings
+				table(is.na(BU$leg_period_start)) # why 213k missings: there are parliament ids in MPDAYLONG that re not in PARL
+				
+				parlidsinmpdaylongvec <- unique(MPDAYLONG$parliament_id)
+				parlidsinmpdaylongvec
+				parlidsinmpdaylongvec[which(!parlidsinmpdaylongvec %in% PARL$parliament_id)]
+				
+				MPDAYLONG_PIDSM <- MPDAYLONG[which(is.na(MPDAYLONG$parliament_id)),]
+				head(MPDAYLONG_PIDSM)
+				nrow(MPDAYLONG_PIDSM)
+				unique(MPDAYLONG_PIDSM$pers_id)
+				nrow(MPDAYLONG_PIDSM) / nrow(MPDAYLONG)
+				
+				# in many cases these are recent parliaments? Is their an issue in MPDAYLONG in how it deals with RCEN dates maybe?
+		
+				# for NL_Geurts_Jaco_1970 this is the case for sure!, i've checked 3 others, this is like this for all of these!
+	
+			# \\ end 'debugging'
+
 	
 	# get the correct internal r-date format
 		BU$leg_period_start_posix <- as.Date(as.POSIXct(as.character(BU$leg_period_start),format=c("%d%b%Y")))
@@ -78,11 +104,12 @@
 	rm(TEMP) ## %% ##
 	
 	# get the daytotals for 'core members'
-		DAYTOTALS <- as.data.frame(table(BURED$day,BURED$country)) ### THIS NEEDS TO CHANGE
+	#	DAYTOTALS <- as.data.frame(table(BURED$day,BURED$country)) ### THIS NEEDS TO CHANGE
 		TESTING <- as.data.frame(BURED %>% count(day, country, house)) ## DOES THIS GIVE THE SAME RESULT? - yes, it seems to, and it also runs a lot faster!
 		
 		head(DAYTOTALS)
 		head(TESTING)
+		DAYTOTALS <- TESTING
 		
 		DAYTOTALS[1000:10010,]
 		tail(DAYTOTALS)
@@ -92,23 +119,30 @@
 		DAYTOTALS$date <- as.Date(DAYTOTALS$date)
 	
 	# also get the daytotals for all members
-		EVERYBODYCOUNTS <- as.data.frame(table(BU$day,BU$country)) ### THIS NEEDS TO CHANGE
+	#	EVERYBODYCOUNTS <- as.data.frame(table(BU$day,BU$country)) ### THIS NEEDS TO CHANGE
+		TESTINGTWO <- as.data.frame(BU %>% count(day, country, house))
+		head(EVERYBODYCOUNTS)
+		head(TESTINGTWO)
+		EVERYBODYCOUNTS <- TESTINGTWO
+		
 		colnames(EVERYBODYCOUNTS) <- c("date","country","house","numberofmps")
 		EVERYBODYCOUNTS$date <- as.Date(EVERYBODYCOUNTS$date)
 		EVERYBODYCOUNTS[20000:20010,]
 		EVERYBODYCOUNTS[50000:50010,]
 		EVERYBODYCOUNTS[70000:70010,]
-		tail(EVERYBODYCOUNTS)
-		head(EVERYBODYCOUNTS)
+		tail(EVERYBODYCOUNTS) # this does not look good, what is up with these last NL entries?
+		
 	
 	# merge these two together
-		TEMP2 <- sqldf("SELECT DAYTOTALS.*, EVERYBODYCOUNTS.numberofmps 	
+		TEMP2 <- sqldf("SELECT DAYTOTALS.*, EVERYBODYCOUNTS.numberofmps
 						FROM DAYTOTALS LEFT JOIN EVERYBODYCOUNTS
 						WHERE 
 							(
 							DAYTOTALS.date = EVERYBODYCOUNTS.date 
 							AND
 							DAYTOTALS.country = EVERYBODYCOUNTS.country
+							AND
+							DAYTOTALS.house = EVERYBODYCOUNTS.house
 							)
 						")
 		
@@ -118,16 +152,21 @@
 		hist(TEMP2$percentagecoremembers)
 	
 	# reduce to drop very recent observations
-		TEMP3 <- TEMP2[which(TEMP2$date < as.Date("2017-12-31")),]
+		TEMP3 <- TEMP2[which(TEMP2$date < as.Date("2017-12-31")),] # this takes care of some of the issues that where identified above with [[rcen]] RESE dates on parliamentary membership
 		nrow(TEMP3)
 		head(TEMP3)
 		
-	ggplot(TEMP3, aes(date, percentagecoremembers, color = country)) + 
-       geom_line()+
+	ggplot(TEMP3, aes(date, percentagecoremembers, linetype= house)) + 
+       geom_line(size=1.03)+
 	   facet_grid(country ~ .) +
 	   ylab("%  MPs also there at the first day of parliament") +
-	   theme_pubclean(base_size = 18)
-	
+	   theme_pubr(base_size = 18,
+					base_family = "",
+					border = FALSE,
+					margin = TRUE,
+					legend = c(0.895,0.8),
+					x.text.angle = 0) +
+		grids(linetype = "dashed",axis="y")
 
 	#########################################
 	### party membership
