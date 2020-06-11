@@ -21,26 +21,51 @@
 	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 
  # load the data
+ if(FALSE)
+ {
 	load("Complete_Daily_MP_Data_2019-11-26_1232.Rdata") # this was the older version 'Complete_Daily_MP_Data_2019-06-04_1444.Rdata' before
-	head(MPDAYLONG)
+#	head(MPDAYLONG)
+	head(INDIVIDUAL)
+}
+	
+	# 1) List all files in the directory
+		FILES <- data.frame(list.files(path = "./dfs_for_release/"))
+		colnames(FILES)[match("list.files.path......dfs_for_release...",colnames(FILES))] <- "file_names"
+
+	# 2) Extract the dates and times from the file names
+		FILES$rawdate <- as.character(str_extract_all(FILES$file_names, "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}"))
+
+	# 3) Order the raw dates with the latest file on the top of the list
+		FILES <- FILES[order(FILES$rawdate, decreasing=TRUE),]
+		FILES<-FILES[!(FILES$rawdate=="character(0)"),] # Get rid of empty rows
+
+	# 4) Complete file to import with file path
+		# filetoimport <- as.character(FILES$file_names[1])
+		filetoimport <- paste("./dfs_for_release/", as.character(FILES$file_names[1]), sep = "")
+
+	# 5) Load all 12 data frames
+		load(filetoimport)
+
 	
 	# Load PARL
 	PARL = read.csv("./source_csvs/PARL.csv", header = TRUE, sep = ";")
 	head(PARL)
 
 # first lets get rid of all the Steanderat entries < this needs to change, 
-	nrow(MPDAYLONG)
-#	MPDAYLONG <- MPDAYLONG[which(!grepl("CH_NT-SR",MPDAYLONG$parliament_id,fixed=TRUE)),]
-	nrow(MPDAYLONG)
-	object.size(MPDAYLONG)
-	head(MPDAYLONG)
-	table(MPDAYLONG$parliament_id)
+	nrow(INDIVIDUAL)
+#	INDIVIDUAL <- INDIVIDUAL[which(!grepl("CH_NT-SR",MPDAYLONG$parliament_id,fixed=TRUE)),]
+	nrow(INDIVIDUAL)
+	object.size(INDIVIDUAL)
+	head(INDIVIDUAL)
+	table(INDIVIDUAL$parliament_id)
+	
+	table(is.na(INDIVIDUAL$party_id_national))
 	
  # merge in the leg_period_start for each parliament
  
-	BU <- sqldf("SELECT MPDAYLONG.*, PARL.leg_period_start, PARL.assembly_abb
-			   FROM MPDAYLONG LEFT JOIN PARL
-			   ON MPDAYLONG.parliament_id = PARL.parliament_id
+	BU <- sqldf("SELECT INDIVIDUAL.pers_id, INDIVIDUAL.parliament_id, INDIVIDUAL.day, INDIVIDUAL.party_id_national, PARL.leg_period_start, PARL.assembly_abb
+			   FROM INDIVIDUAL LEFT JOIN PARL
+			   ON INDIVIDUAL.parliament_id = PARL.parliament_id
 			   ORDER BY pers_id, day
 			 ")
 	head(BU)
@@ -52,30 +77,6 @@
 		BU$house <- ifelse((BU$assembly_abb == "TK" | BU$assembly_abb == "BT" | BU$assembly_abb == "NR"),"lower house","upper house")
 		table(BU$house)
 		table(BU$assembly_abb,BU$house)
-		
-			# \\ start 'debugging'
-			
-				table(is.na(BU$house)) # why 213k missings
-				nrow(MPDAYLONG)
-				table(is.na(BU$assembly_abb)) # why 213k missings
-				table(is.na(BU$leg_period_start)) # why 213k missings: there are parliament ids in MPDAYLONG that re not in PARL
-				
-				parlidsinmpdaylongvec <- unique(MPDAYLONG$parliament_id)
-				parlidsinmpdaylongvec
-				parlidsinmpdaylongvec[which(!parlidsinmpdaylongvec %in% PARL$parliament_id)]
-				
-				MPDAYLONG_PIDSM <- MPDAYLONG[which(is.na(MPDAYLONG$parliament_id)),]
-				head(MPDAYLONG_PIDSM)
-				nrow(MPDAYLONG_PIDSM)
-				unique(MPDAYLONG_PIDSM$pers_id)
-				nrow(MPDAYLONG_PIDSM) / nrow(MPDAYLONG)
-				
-				# in many cases these are recent parliaments? Is their an issue in MPDAYLONG in how it deals with RCEN dates maybe?
-		
-				# for NL_Geurts_Jaco_1970 this is the case for sure!, i've checked 3 others, this is like this for all of these!
-	
-			# \\ end 'debugging'
-
 	
 	# get the correct internal r-date format
 		BU$leg_period_start_posix <- as.Date(as.POSIXct(as.character(BU$leg_period_start),format=c("%d%b%Y")))
@@ -180,11 +181,13 @@
 		 # then - as above - we can use an %in% to for each day only select people that meet this criteria
 
 		# step 1: get a data-frame that contains - for each parliament(!) - the first day you entered this parliament
-			head(MPDAYLONG)
-			MPDAYLONG$fake_parl_episode_id <- stri_join(MPDAYLONG$pers_id,MPDAYLONG$parliament_id,sep="__")
 		
-			FIRSTPARLDAY <- sqldf("SELECT MPDAYLONG.*, MIN(day) as 'first_day'
-								   FROM MPDAYLONG
+			head(BU)
+			BU <- data.frame(BU)
+			BU$fake_parl_episode_id <- paste0(BU$pers_id,BU$parliament_id)
+		
+			FIRSTPARLDAY <- sqldf("SELECT BU.*, MIN(day) as 'first_day'
+								   FROM BU
 								   GROUP BY fake_parl_episode_id
 								 ")
 			
@@ -192,84 +195,177 @@
 			head(FIRSTPARLDAY)
 			nrow(FIRSTPARLDAY)
 		
-		# step 2: merge this into MPDAYLONG
+		# step 2: merge this into BU
 			
-			TEMPA <- sqldf("SELECT MPDAYLONG.*, FIRSTPARLDAY.first_day_asdate
-						   FROM MPDAYLONG LEFT JOIN FIRSTPARLDAY
+			TEMPA <- sqldf("SELECT BU.*, FIRSTPARLDAY.first_day_asdate
+						   FROM BU LEFT JOIN FIRSTPARLDAY
 						   ON
-						   MPDAYLONG.fake_parl_episode_id = FIRSTPARLDAY.fake_parl_episode_id
+						   BU.fake_parl_episode_id = FIRSTPARLDAY.fake_parl_episode_id
 						 ")		
 			head(TEMPA)
 			tail(TEMPA)
-			MPDAYLONG <- TEMPA
-			TEMPA <- MPDAYLONG
-			head(MPDAYLONG)
+			BU <- TEMPA
+			TEMPA <- BU
+			head(BU)
 			
-		# step 3: get the party on this first day
+		# step 3: get the party ON THE FIRST DAY
+		
+			# for this we first need to read in MEME
+					MEME = read.csv("./source_csvs/MEME.csv", header = TRUE, sep = ";")
+					head(MEME)
 		
 			# get the data that I need for this cleaned
-			MEME$memep_startdate_dateformat <- as.Date(as.POSIXct(MEME$memep_startdate,format=c("%d%b%Y"),tz="CET"))
-			MEME$memep_enddate_dateformat <- as.Date(as.POSIXct(MEME$memep_enddate,format=c("%d%b%Y"),tz="CET"))
 			
-			# !! please note!! for a final version a bit more data-cleaning e.t.c. should be done here to reduce missingness!
+				# deal with left and right censored dates
+					MEME$memep_startdate_cleaned <- gsub("[[rcen]]","",MEME$memep_startdate,fixed=TRUE)
+					MEME$memep_startdate_cleaned <- gsub("[[lcen]]","",MEME$memep_startdate_cleaned,fixed=TRUE)
+					MEME$memep_enddate_cleaned <- gsub("[[rcen]]","",MEME$memep_enddate,fixed=TRUE)
+					MEME$memep_enddate_cleaned <- gsub("[[lcen]]","",MEME$memep_enddate_cleaned,fixed=TRUE)
+					
+					table(nchar(MEME$memep_startdate_cleaned)) # so, no issue yet, but will be when new IMPORT has been added
+					table(nchar(MEME$memep_enddate_cleaned)) # so, no issue yet, but will be when new IMPORT has been added
+					
+				# deal with dates that are only years (select 1th of June)			
+					MEME$memep_startdate_cleaned <- ifelse(nchar(MEME$memep_startdate_cleaned) == 4,paste("01jun",MEME$memep_startdate_cleaned,sep=""),MEME$memep_startdate_cleaned)
+					MEME$memep_enddate_cleaned <- ifelse(nchar(MEME$memep_enddate_cleaned) == 4,paste("01jun",MEME$memep_enddate_cleaned,sep=""),MEME$memep_enddate_cleaned)
+				
+				# deal with dates that are only months (select 1th of this month)
+					MEME$memep_startdate_cleaned <- ifelse(nchar(MEME$memep_startdate_cleaned) == 7,paste("01",MEME$memep_startdate_cleaned,sep=""),MEME$memep_startdate_cleaned)
+					MEME$memep_enddate_cleaned <- ifelse(nchar(MEME$memep_enddate_cleaned) == 7,paste("01",MEME$memep_enddate_cleaned,sep=""),MEME$memep_enddate_cleaned)
+				
+				# make an internal R-date
+					MEME$memep_startdate_dateformat <- as.Date(as.POSIXct(MEME$memep_startdate,format=c("%d%b%Y"),tz="CET"))
+					MEME$memep_enddate_dateformat <- as.Date(as.POSIXct(MEME$memep_enddate,format=c("%d%b%Y"),tz="CET"))
+			
+			# !! please note!! for a final version a bit more data-cleaning e.t.c. should be done here to reduce missingness! -- currently only based on MEME.. is that the same for Oliver his 'party_id_national' variable?
 			TEMPB <- sqldf("
-						SELECT MPDAYLONG.*, MEME.party_id as 'party_at_start'
-						FROM MPDAYLONG LEFT JOIN MEME
+						SELECT BU.*, MEME.party_id as 'party_at_start'
+						FROM BU LEFT JOIN MEME
 						ON 
-							MPDAYLONG.pers_id = MEME.pers_id
+							BU.pers_id = MEME.pers_id
 							AND
 								(
-								MPDAYLONG.first_day_asdate >= MEME.memep_startdate_dateformat
+								BU.first_day_asdate >= MEME.memep_startdate_dateformat
 								AND
-								MPDAYLONG.first_day_asdate <= MEME.memep_enddate_dateformat
+								BU.first_day_asdate <= MEME.memep_enddate_dateformat
 								)
 						")
 			head(TEMPB)
 			tail(TEMPB)
 			table(TEMPB$party_at_start)
-			table(is.na(TEMPB$party_at_start)) # ! so ! note for later that there is a bit of missingness here that needs to be dealth with, ! (excluded these cases) below already for the normalisation accross countries!
-			MPDAYLONG <- TEMPB
-		#	rm(TEMPB)
+			table(is.na(TEMPB$party_at_start)) # ! so ! note for later that there is a bit of missingness here that needs to be dealth with, ! (excluded these cases) below already for the normalisation accross countries! ## this needs to be brought up with Oliver and Elena!  -- for CH this includes regional variations as well!
 			
-			# is it possible that at this stage some MPs get described mutiple parties?
+			# and how does this lool like in Oliver' data?
+			head(TEMPB)
+			table(is.na(TEMPB$party_id_national)) # missing for almost the exact some cases it seems, let inspect some of these
 			
-		# step 4: get the party on the day that specificies the row in MPDAYLONG itself
+			head(TEMPB[is.na(TEMPB$party_at_start),])
+			tail(TEMPB[is.na(TEMPB$party_at_start),])
+			
+			head(TEMPB[is.na(TEMPB$party_id_national),])
+			tail(TEMPB[is.na(TEMPB$party_id_national),])
+			
+			# how many different people are we actuallt talking about?
+			
+			missingpersvec <- unique(TEMPB[is.na(TEMPB$party_at_start),]$pers_id) # alright, so about 130 people, all Dutch! -- interesting they do all not seem to have any MEME entries at all?! -- they do not even occur in POLI ?! -- are these people that where somehow missed in Tomas' origional data?! and later only added to RESE but not anywhere else it seems! 
+			
+				# so, what needs to be added for these people? - for the day by day paper that is!
+				
+					# 1. their POLI entry!
+					# 2. their MEME entry! > looks like this can be taken from the file below!
+					
+					# taking this vector so I can focus on updating these cases
+					library("xlsx")
+					write.xlsx(as.data.frame(missingpersvec), "missings_pers.xlsx", sheetName = "missing_pers",  col.names = FALSE, row.names = FALSE, append = FALSE)
+					
+					# see C:\Users\turnerzw\Basel Powi Dropbox\NL_data\Additional PCC updates from PDC data for day by day paper <-- suggestion is we did do MEME updates?! They are there, so why where they never added to MEME in PCC?
+			
+					POLI = read.csv("./source_csvs/POLI.csv", header = TRUE, sep = ";")
+					head(POLI)
+					missingpersvec[which(!missingpersvec %in% POLI$pers_id)] # OK, so they all exist in POLI, and in MEME?
+					missingpersvec[which(!missingpersvec %in% MEME$pers_id)] # all, expect one(!) do NOT exist in MEME, so we can focus on preparing an IMPORT for that file now!
+					
+					
+					
+			
+			unique(TEMPB[is.na(TEMPB$party_id_national),]$pers_id) # alright, so about 130 people, all Dutch!
+			
+			# lets also see below what this looks like with the further data limitations!
+			
+			BU <- TEMPB
+			rm(TEMPB)
+			
+			# is it possible that at this stage some MPs get assigned multiple parties?
+			
+		# step 4: get the party ON THE DAY THAT SPECIFIES THE ROW in BU itself
 		
 			TEMPC <- sqldf("
-						SELECT MPDAYLONG.*, MEME.party_id as 'party_now'
-						FROM MPDAYLONG LEFT JOIN MEME
+						SELECT BU.*, MEME.party_id as 'party_now'
+						FROM BU LEFT JOIN MEME
 						ON 
-							MPDAYLONG.pers_id = MEME.pers_id
+							BU.pers_id = MEME.pers_id
 							AND
 								(
-								MPDAYLONG.day >= MEME.memep_startdate_dateformat
+								BU.day >= MEME.memep_startdate_dateformat
 								AND
-								MPDAYLONG.day <= MEME.memep_enddate_dateformat
+								BU.day <= MEME.memep_enddate_dateformat
 								)
 						")
 			head(TEMPC)
 			tail(TEMPC)
 			table(TEMPC$party_now)
 			#table(is.na(TEMPC))
-			MPDAYLONG <- TEMPC
-		#	rm(TEMPC)
+			BU <- TEMPC
+			rm(TEMPC)
+			table(is.na(BU$party_now)) # the missingness number is very simular here!
 		
 		# step 5: select the stable party members (i.e.: people that have the same party on this day as they had when they entered parliament)
-			#	STAPAME <- sqldf("SELECT MPDAYLONG.*
-			#				      FROM MPDAYLONG
-			#					  WHERE MPDAYLONG.party_now = MPDAYLONG.party_at_start
+			#	STAPAME <- sqldf("SELECT BU.*
+			#				      FROM BU
+			#					  WHERE BU.party_now = BU.party_at_start
 			#					")
 			#	nrow(STAPAME) # same result as below!
 				# or is this faster? > yes it is
-				STAPAME <- MPDAYLONG[which(MPDAYLONG$party_now == MPDAYLONG$party_at_start),]
+				STAPAME <- BU[which(BU$party_now == BU$party_at_start),]
 				nrow(STAPAME)
 				head(STAPAME)
 				
+			# I am going to only save what is needed here, and reset R.
+				
+				# so, we need to safe STAPAME, BU (and that's it?)
+					save(STAPAME, BU, file = "stuff.RData")
+					
+					rm(list = ls())
+					.rs.restartR()
+					
+					# reload again
+					
+						library(sqldf)
+						library(lubridate)
+						library(ggplot2)
+						library(ggpubr)
+						library(data.table)
+						library(stringi)
+						library(purrr)
+						library(tidyverse)
+						
+						setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+						load("stuff.RData")			
+			
 			# there are probably double party memberships in here?!
 			
+			#	STAPAME$pers_id_day <- paste(STAPAME$pers_id,STAPAME$day,sep="_") # do get a memory exhausted error here
+				gc()
+				STAPAME <- data.table(STAPAME)
+			#	STAPAME$pers_id_day <- paste0(STAPAME$pers_id,STAPAME$day)	
+				STAPAME %>% unite("pers_id_day",pers_id:day,sep="_")
+				head(STAPAME)
+						
+			if(false) # commenting this out so we are not wasting memory space on it.
+			{
 				# investigating this issues
 					head(STAPAME)
-					STAPAME$pers_id_day <- stri_join(STAPAME$pers_id,STAPAME$day,sep="_")
+					
 					gc()
 					length(STAPAME$pers_id_day)
 					length(unique(STAPAME$pers_id_day)) # so, there are indeed doubles, lets find one:
@@ -309,22 +405,32 @@
 					table(party_at_start_error_vec) # always the same
 					table(party_now_error_vec) # always the same
 					# conclusion: we can just use the first occurence
-				
+			}
+			
 				# fixing the issue of double party membership days
 					nrow(STAPAME)
+					unique(STAPAME$pers_id_day)
 					STAPAME <- STAPAME[!duplicated(STAPAME$pers_id_day), ]
 					nrow(STAPAME)
 					length(unique(STAPAME$pers_id_day)) # looking good
 					
 		# and a check
 		
-			nrow(MPDAYLONG[which(MPDAYLONG$pers_id == "NL_Wilders_Geert_1963"),])
+			nrow(BU[which(BU$pers_id == "NL_Wilders_Geert_1963"),])
 			nrow(STAPAME[which(STAPAME$pers_id == "NL_Wilders_Geert_1963"),]) # should be less, and it is
+			nrow(STAPAME)
 		
 		# step 6. tabulate the whole thing
 			STAPAME$country <- substr(STAPAME$pers_id,0,2)
-			SPMTAB <- as.data.frame(table(STAPAME$day,STAPAME$country))
-			colnames(SPMTAB) <- c("date","country","numberofpartystablemps")
+			# SPMTAB <- as.data.frame(table(STAPAME$day,STAPAME$country)) # actually get a memory allocation error with this older setup, so good to have the new tidyverse way
+			AA <- data.table(as.data.frame(STAPAME %>% count(day, country, house)))
+			
+			# does his look the same?
+			head(STAPAME)
+			head(AA)
+			SPMTAB <- AA
+			
+			colnames(SPMTAB) <- c("date","country","house","numberofpartystablemps")
 			SPMTAB$date <- as.Date(SPMTAB$date)
 			head(SPMTAB)
 			tail(SPMTAB)
@@ -333,10 +439,10 @@
 			SPMTAB[70000:70010,]
 			
 			# inspect the to high counts in the later years
-				
+			
+			if(FALSE)
+			{
 				# is the number of stable party members to high? > yes it is!
-				SPMTABCHINSP <- SPMTAB[which(SPMTAB$country == "CH" & SPMTAB$date > as.Date("2001-01-01") & SPMTAB$date < as.Date("2002-01-01")),]
-				rm(SPMTAB)
 				gc()
 				SPMTABCHINSP # so, the numbers are indeed to high here (larger then 200 -- why?!)
 				
@@ -348,23 +454,27 @@
 				head(CHECKING)
 				TEMPRES <- CHECKING[which(CHECKING$country == "CH" & CHECKING$date > as.Date("2001-01-01") & CHECKING$date < as.Date("2002-01-01")),]
 				TEMPRES # this looks fine!
-			
+			}
 		# step 7, and a reduced EVERYBODYCOUNTS data-frame that does not include days for which either the party at start of party now is missing in MPDAYLONG
 		
-			MPDAYLONGMISSINGCASES <- MPDAYLONG[which(is.na(MPDAYLONG$party_at_start) | is.na(MPDAYLONG$party_now)),]
-			MPDAYLONGMISSINGCASES$persidandday <- stri_join(MPDAYLONGMISSINGCASES$pers_id,as.character(MPDAYLONGMISSINGCASES$day),sep="")
+			MPDAYLONGMISSINGCASES <- BU[which(is.na(BU$party_at_start) | is.na(BU$party_now)),]
+			# MPDAYLONGMISSINGCASES$persidandday <- stri_join(MPDAYLONGMISSINGCASES$pers_id,as.character(MPDAYLONGMISSINGCASES$day),sep="") # should we add the house here as well?
+			MPDAYLONGMISSINGCASES <- data.table(MPDAYLONGMISSINGCASES)
+			MPDAYLONGMISSINGCASES$persidandday <- paste0(MPDAYLONGMISSINGCASES$pers_id,MPDAYLONGMISSINGCASES$day)
+			
 			gc()
 			head(MPDAYLONGMISSINGCASES)
 			nrow(MPDAYLONGMISSINGCASES)
-			rm(MPDAYLONG)
 			gc()
 			
-			BU$persidandday <- stri_join(BU$pers_id,as.character(BU$day),sep="")
+			BU <- data.table(BU)
+			BU$persidandday <- paste0(BU$pers_id,BU$day)
+			# BU$persidandday <- stri_join(BU$pers_id,as.character(BU$day),sep="")
 			gc()
 			head(BU)
 			
 			nrow(BU)
-			BURED2 <- BU[which(!(BU$persidandday %in% MPDAYLONGMISSINGCASES$persidandday)),]
+			BURED2 <- BU[which(!(BU$persidandday %in% MPDAYLONGMISSINGCASES$persidandday)),] #  I guess we have to make this reduction standerat specific 
 			nrow(BURED2) # indeed some reduction
 			rm(MPDAYLONGMISSINGCASES)
 			gc()
@@ -373,15 +483,17 @@
 			table(BURED2$parliament_id) # nope, does not seem to be the problem
 			
 			# create new totals
-				EVERYBODYCOUNTSRED <- as.data.frame(table(BURED2$day,BURED2$country))
-				colnames(EVERYBODYCOUNTSRED) <- c("date","country","numberofmps")
+				# EVERYBODYCOUNTSRED <- as.data.frame(table(BURED2$day,BURED2$country))
+				EVERYBODYCOUNTSRED <- as.data.frame(BURED2 %>% count(day, country, house))
+				
+				colnames(EVERYBODYCOUNTSRED) <- c("date","country","house","numberofmps")
 				EVERYBODYCOUNTSRED$date <- as.Date(EVERYBODYCOUNTSRED$date)
 				EVERYBODYCOUNTSRED[20000:20010,]
 				EVERYBODYCOUNTSRED[50000:50010,]
 				EVERYBODYCOUNTSRED[70000:70010,]
 				tail(EVERYBODYCOUNTSRED)
 				head(EVERYBODYCOUNTSRED)
-				rm(BURED2)
+			#	rm(BURED2)
 				gc()
 				
 			# merge these in also here to calculate percentages
@@ -392,11 +504,15 @@
 							SPMTAB.date = EVERYBODYCOUNTSRED.date 
 							AND
 							SPMTAB.country = EVERYBODYCOUNTSRED.country
+							AND
+							SPMTAB.house = EVERYBODYCOUNTSRED.house
 							)
 						")
-					rm(EVERYBODYCOUNTSRED)
+				#	rm(EVERYBODYCOUNTSRED)
 					gc()
-		
+					head(TEMPD)
+					tail(TEMPD)
+			
 			# calculate the percentage
 				TEMPD$percentagestayingpartymembers <- (TEMPD$numberofpartystablemps / TEMPD$numberofmps) * 100
 				summary(TEMPD$percentagestayingpartymembers)
@@ -411,7 +527,7 @@
 				head(TEMPE)
 				tail(TEMPE)
 				
-			ggplot(TEMPE, aes(date, percentagestayingpartymembers, color = country)) + 
+			ggplot(TEMPE, aes(date, percentagestayingpartymembers, linetype = house)) + 
 			   geom_line()+
 			   facet_grid(country ~ .) +
 			   ylab("%  MPs in same party as when they entered") +
