@@ -233,6 +233,41 @@
 					MEME$memep_startdate_cleaned <- ifelse(nchar(MEME$memep_startdate_cleaned) == 7,paste("01",MEME$memep_startdate_cleaned,sep=""),MEME$memep_startdate_cleaned)
 					MEME$memep_enddate_cleaned <- ifelse(nchar(MEME$memep_enddate_cleaned) == 7,paste("01",MEME$memep_enddate_cleaned,sep=""),MEME$memep_enddate_cleaned)
 				
+					table(nchar(MEME$memep_startdate_cleaned)) 
+					table(nchar(MEME$memep_enddate_cleaned))
+					
+					MEME[which(nchar(MEME$memep_enddate_cleaned) == 2),] # so these are NA's... lets make these NA
+					
+					MEME$memep_startdate_cleaned[which(MEME$memep_startdate_cleaned == "NC")] <- NA
+					MEME$memep_enddate_cleaned[which(MEME$memep_enddate_cleaned == "NC")] <- NA
+				
+				# when the start data of an MP its first date is NA, use the birthday
+				
+					# OK, so the clean that needs to happen here really is quite complicated... We have the following scenarios
+						# scenario A: there is only one line for an MP and both the start and the end date are NA : we use the 18th birthday and the 65th birthday
+						# scenario B1: the start date of the first entry is missing#
+						# scenario B2: the end of the last entry is missing
+						# scenario C1: the start date is missing, but there is an earlier entry with an end date
+						# scenario C1a: the start date is missing, and there is an earlier entry but it does not have an end date
+						
+						# scenario C2: the end date is missing, but there is an later entry with an start date
+						# scenario C2a: the end date is missing, yet there NO later entry with an start date
+					
+					# if , use the 
+					
+					MEME[which(is.na(MEME$memep_enddate_cleaned)),]
+					
+					for 
+					mypersid <- "NL_Aalberse_Piet_1910"
+					if (length(MEME$pers_id[which(MEME$pers_id == mypersid)]) == 0)
+					{
+						
+					}
+					
+						
+				
+				
+				
 				# make an internal R-date
 					MEME$memep_startdate_dateformat <- as.Date(as.POSIXct(MEME$memep_startdate,format=c("%d%b%Y"),tz="CET"))
 					MEME$memep_enddate_dateformat <- as.Date(as.POSIXct(MEME$memep_enddate,format=c("%d%b%Y"),tz="CET"))
