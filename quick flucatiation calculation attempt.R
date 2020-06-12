@@ -11,6 +11,7 @@
 	library(stringi)
 	library(purrr)
 	library(tidyverse)
+	library(data.table)
 	
 # change the language and date formatting to English if it is not already
 	Sys.setenv(LANG = "EN")
@@ -19,6 +20,14 @@
 
  # working directory
 	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+	
+ # a function that is used below
+	substrRight <- function(x, n)
+	{
+		substr(x, nchar(x)-n+1, nchar(x))
+	}	
+		
+
 
  # load the data
  if(FALSE)
@@ -79,9 +88,9 @@
 		table(BU$assembly_abb,BU$house)
 	
 	# get the correct internal r-date format
-		BU$leg_period_start_posix <- as.Date(as.POSIXct(as.character(BU$leg_period_start),format=c("%d%b%Y")))
-		BU$leg_period_start_posix <- BU$leg_period_start_posix + days(1) # quick fix
-		BU[22700:22720,] # got a range where the first day can be seen, finally
+	#	BU$leg_period_start_posix <- as.Date(as.POSIXct(as.character(BU$leg_period_start),format=c("%d%b%Y")))
+		BU$leg_period_start_posix <- as.Date(fast_strptime(as.character(BU$leg_period_start),"%d%b%Y")) # this one works faster, with a better result rom the lubridate package
+		table(BU$leg_period_start_posix == BU$leg_period_start_posix2) # indeed, exactly the same, and much faster! - and actuall without this one day issue, so lets implement this everywhere
 
 	# now, get rid off all cases that do not meet the following criteria: a row exists in the data-frame where the day is the legistlative period its start date, if this is not the case you where not 'there on the first day'
 	
@@ -118,6 +127,9 @@
 		colnames(DAYTOTALS) <- c("date","country","house","frequency")
 		head(DAYTOTALS)
 		DAYTOTALS$date <- as.Date(DAYTOTALS$date)
+		
+		
+		
 	
 	# also get the daytotals for all members
 	#	EVERYBODYCOUNTS <- as.data.frame(table(BU$day,BU$country)) ### THIS NEEDS TO CHANGE
@@ -204,6 +216,8 @@
 						 ")		
 			head(TEMPA)
 			tail(TEMPA)
+			nrow(BU)
+			nrow(TEMPA)
 			BU <- TEMPA
 			TEMPA <- BU
 			head(BU)
@@ -230,8 +244,8 @@
 					MEME$memep_enddate_cleaned <- ifelse(nchar(MEME$memep_enddate_cleaned) == 4,paste("01jun",MEME$memep_enddate_cleaned,sep=""),MEME$memep_enddate_cleaned)
 				
 				# deal with dates that are only months (select 1th of this month)
-					MEME$memep_startdate_cleaned <- ifelse(nchar(MEME$memep_startdate_cleaned) == 7,paste("01",MEME$memep_startdate_cleaned,sep=""),MEME$memep_startdate_cleaned)
-					MEME$memep_enddate_cleaned <- ifelse(nchar(MEME$memep_enddate_cleaned) == 7,paste("01",MEME$memep_enddate_cleaned,sep=""),MEME$memep_enddate_cleaned)
+					MEME$memep_startdate_cleaned <- ifelse(nchar(MEME$memep_startdate_cleaned) == 7,paste("15",MEME$memep_startdate_cleaned,sep=""),MEME$memep_startdate_cleaned)
+					MEME$memep_enddate_cleaned <- ifelse(nchar(MEME$memep_enddate_cleaned) == 7,paste("15",MEME$memep_enddate_cleaned,sep=""),MEME$memep_enddate_cleaned)
 				
 					table(nchar(MEME$memep_startdate_cleaned)) 
 					table(nchar(MEME$memep_enddate_cleaned))
@@ -252,25 +266,89 @@
 						
 						# scenario C2: the end date is missing, but there is an later entry with an start date
 						# scenario C2a: the end date is missing, yet there NO later entry with an start date
-					
-					# if , use the 
-					
-					MEME[which(is.na(MEME$memep_enddate_cleaned)),]
-					
-					for 
-					mypersid <- "NL_Aalberse_Piet_1910"
-					if (length(MEME$pers_id[which(MEME$pers_id == mypersid)]) == 0)
-					{
 						
-					}
-					
+						#  > please not that in Oliver' integrity scripts all missing start and end dates are simply set the 18th and 65th birthday.. potential issue with that is that MPs can then have more then one party membership at the same time, lets see how many cases would not deal well with this solution?
 						
-				
-				
+						if(FALSE)
+						{
+							# how many are their of me?
+							MEME[which(is.na(MEME$memep_enddate_cleaned)),]
+							
+							resvec <- vector()
+							pb <- txtProgressBar(min = 1, max = nrow(MEME), style = 3)
+							for(i in 1:nrow(MEME))
+							{
+								mypersid <- MEME$pers_id[i]
+								resvec[i] <- length(MEME$pers_id[which(MEME$pers_id == mypersid)])
+								setTxtProgressBar(pb, i)
+							}
+							close(pb)
+							# resvec
+							MEME$howmanyofme <- resvec
+							head(MEME)
+						
+							# among these, select some cases with NA'safe
+							MEME$anydateNAS <- ifelse(is.na(MEME$memep_startdate_cleaned)|is.na(MEME$memep_enddate_cleaned),TRUE,FALSE)
+						
+							# display potential cases for which this kind of date fixing might not be great
+							MEME[which(MEME$howmanyofme > 1 & MEME$anydateNAS),]
+							
+							# what do we see?
+								
+								# fist, a lot of this seems to be due to the lack of a right censored date for a bunch of people in CH - new data from Elena?
+								
+									# lets focus this on people that are actually in the the BU data
+									CHECKME <- MEME[which(MEME$howmanyofme > 2 & MEME$anydateNAS & MEME$pers_id %in% BU$pers_id),]
+									
+									# in most of the swss cases, taking the day before the start date of the next entry seems to do a lot (this could be step one)
+									
+										# make an internal R-date
+											MEME$memep_startdate_cleaned_dateformat <- as.Date(fast_strptime(as.character(MEME$memep_startdate_cleaned),"%d%b%Y"))
+											MEME$memep_enddate_cleaned_dateformat <- as.Date(fast_strptime(as.character(MEME$memep_enddate_cleaned),"%d%b%Y"))
+									
+									
+										# some vars that will be needed
+											MEME$birthyear <- substrRight(as.character(MEME$pers_id),4)
+											head(MEME)
+									
+										# set the '18' if there are no earlier entries
+										i = 1
+										pb <- txtProgressBar(min = 1, max = nrow(MEME), style = 3)
+										for(i in 1:nrow(MEME))
+										{
+
+											# if my start is NA, and there are no earlier entries
+											
+												# how do I know if there are earlier entries? : if there are any other entries with earlier start or end dates
+												
+												# get a data-frame with just me and just me without the current line
+													MEHERE <- MEME[which(MEME$pers_id == MEME$pers_id[i]),]
+													MEHEREWITHOUTME <- MEHERE[which(!MEHERE$memep_id == MEHERE$memep_id[i]),]
+												
+												
+												# get my own end and the lowest dates elsewhere
+													myenddate <- MEME$memep_enddate_cleaned_dateformat[i]
+													loweststartdatefromotherentries <- min(MEHEREWITHOUTME$memep_startdate_cleaned_dateformat,na.rm=TRUE)
+													lowestenddatefromotherentries <- min(MEHEREWITHOUTME$memep_enddate_cleaned_dateformat,na.rm=TRUE)
+													lowestdateboth <- min(loweststartdatefromotherentries,lowestenddatefromotherentries)
+												
+												# check conditions: are their any other entries with earlier start or end dates
+												if (!is.na(myenddate) | is.na(lowestdateboth)) # can we do the check in the first place?
+												{
+													if(is.na(myenddate) & myenddate < lowestdateboth)
+													{
+														MEME$memep_startdate_cleaned[i] <-  paste("01jan",as.character(as.numeric(as.character(MEME$birthyear[i]))+18),sep="")
+													}
+												}
+										setTxtProgressBar(pb, i) 
+										}
+										close(pb)
+						}
 				
 				# make an internal R-date
-					MEME$memep_startdate_dateformat <- as.Date(as.POSIXct(MEME$memep_startdate,format=c("%d%b%Y"),tz="CET"))
-					MEME$memep_enddate_dateformat <- as.Date(as.POSIXct(MEME$memep_enddate,format=c("%d%b%Y"),tz="CET"))
+					MEME$memep_startdate_cleaned_dateformat <- as.Date(fast_strptime(as.character(MEME$memep_startdate_cleaned),"%d%b%Y"))
+					MEME$memep_enddate_cleaned_dateformat <- as.Date(fast_strptime(as.character(MEME$memep_enddate_cleaned),"%d%b%Y"))
+					head(MEME)
 			
 			# !! please note!! for a final version a bit more data-cleaning e.t.c. should be done here to reduce missingness! -- currently only based on MEME.. is that the same for Oliver his 'party_id_national' variable?
 			TEMPB <- sqldf("
@@ -280,9 +358,9 @@
 							BU.pers_id = MEME.pers_id
 							AND
 								(
-								BU.first_day_asdate >= MEME.memep_startdate_dateformat
+								BU.first_day_asdate >= MEME.memep_startdate_cleaned_dateformat
 								AND
-								BU.first_day_asdate <= MEME.memep_enddate_dateformat
+								BU.first_day_asdate <= MEME.memep_enddate_cleaned_dateformat
 								)
 						")
 			head(TEMPB)
@@ -327,10 +405,12 @@
 			
 			# lets also see below what this looks like with the further data limitations!
 			
-			BU <- TEMPB
-			rm(TEMPB)
+			nrow(BU)
+			nrow(TEMPB)
 			
-			# is it possible that at this stage some MPs get assigned multiple parties?
+			BU <- TEMPB
+			
+			# is it possible that at this stage some MPs get assigned multiple parties? - yes that does seem to happen, do I deal with this below?
 			
 		# step 4: get the party ON THE DAY THAT SPECIFIES THE ROW in BU itself
 		
@@ -341,19 +421,22 @@
 							BU.pers_id = MEME.pers_id
 							AND
 								(
-								BU.day >= MEME.memep_startdate_dateformat
+								BU.day >= MEME.memep_startdate_cleaned_dateformat
 								AND
-								BU.day <= MEME.memep_enddate_dateformat
+								BU.day <= MEME.memep_enddate_cleaned_dateformat
 								)
 						")
 			head(TEMPC)
 			tail(TEMPC)
 			table(TEMPC$party_now)
 			#table(is.na(TEMPC))
+			nrow(BU)
+			nrow(TEMPC)
 			BU <- TEMPC
-			rm(TEMPC)
+			#rm(TEMPC)
+			table(is.na(BU$party_at_start))
 			table(is.na(BU$party_now)) # the missingness number is very simular here!
-		
+			
 		# step 5: select the stable party members (i.e.: people that have the same party on this day as they had when they entered parliament)
 			#	STAPAME <- sqldf("SELECT BU.*
 			#				      FROM BU
@@ -364,6 +447,7 @@
 				STAPAME <- BU[which(BU$party_now == BU$party_at_start),]
 				nrow(STAPAME)
 				head(STAPAME)
+				nrow(STAPAME)
 				
 			# I am going to only save what is needed here, and reset R.
 				
@@ -379,7 +463,7 @@
 						library(lubridate)
 						library(ggplot2)
 						library(ggpubr)
-						library(data.table)
+						
 						library(stringi)
 						library(purrr)
 						library(tidyverse)
@@ -392,8 +476,10 @@
 			#	STAPAME$pers_id_day <- paste(STAPAME$pers_id,STAPAME$day,sep="_") # do get a memory exhausted error here
 				gc()
 				STAPAME <- data.table(STAPAME)
-			#	STAPAME$pers_id_day <- paste0(STAPAME$pers_id,STAPAME$day)	
-				STAPAME %>% unite("pers_id_day",pers_id:day,sep="_")
+				STAPAME$pers_id_day <- paste0(STAPAME$pers_id,STAPAME$day)	
+			#	STAPAME %>% unite("pers_id_day",pers_id:day,sep="_")
+				head(STAPAME)
+				STAPAME <- as.data.frame(STAPAME)
 				head(STAPAME)
 						
 			if(false) # commenting this out so we are not wasting memory space on it.
@@ -442,9 +528,9 @@
 					# conclusion: we can just use the first occurence
 			}
 			
-				# fixing the issue of double party membership days
+				# fixing the issue of double party membership days by just selecting the first party and seeing if that changed, if not it is fine for us to count this as 'has not changed'
 					nrow(STAPAME)
-					unique(STAPAME$pers_id_day)
+					length(unique(STAPAME$pers_id_day))
 					STAPAME <- STAPAME[!duplicated(STAPAME$pers_id_day), ]
 					nrow(STAPAME)
 					length(unique(STAPAME$pers_id_day)) # looking good
@@ -530,6 +616,10 @@
 				head(EVERYBODYCOUNTSRED)
 			#	rm(BURED2)
 				gc()
+			
+			
+			# inspect how complete this data is
+				ggplot(NULL) +  geom_line(data=EVERYBODYCOUNTSRED, aes(x=date, y=numberofmps, linetype=house)) + facet_grid(country ~ .)
 				
 			# merge these in also here to calculate percentages
 					TEMPD <- sqldf("SELECT SPMTAB.*, EVERYBODYCOUNTSRED.numberofmps 	
