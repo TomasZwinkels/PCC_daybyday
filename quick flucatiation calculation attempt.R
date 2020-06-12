@@ -653,11 +653,33 @@
 				tail(TEMPE)
 				
 			ggplot(TEMPE, aes(date, percentagestayingpartymembers, linetype = house)) + 
-			   geom_line()+
+			   geom_line(size=1.03)+
+			   facet_grid(country ~ .) +
 			   facet_grid(country ~ .) +
 			   ylab("%  MPs in same party as when they entered") +
-			   theme_pubclean(base_size = 20) +
+			   ylim(c(60,100)) +
+			   theme_pubr(base_size = 18,
+					base_family = "",
+					border = FALSE,
+					margin = TRUE,
+					legend = c(0.075,0.8),
+					x.text.angle = 0) +
+					grids(linetype = "dashed",axis="y")
+			   
+			   
 			   coord_trans(y="log2")
+			   
+			 	ggplot(TEMP3, aes(date, percentagecoremembers, linetype= house)) + 
+       geom_line(size=1.03)+
+	   facet_grid(country ~ .) +
+	   ylab("%  MPs also there at the first day of parliament") +
+	   theme_pubr(base_size = 18,
+					base_family = "",
+					border = FALSE,
+					margin = TRUE,
+					legend = c(0.895,0.8),
+					x.text.angle = 0) +
+		grids(linetype = "dashed",axis="y")
 				
 	#########################################
 	### party group / faction membership
