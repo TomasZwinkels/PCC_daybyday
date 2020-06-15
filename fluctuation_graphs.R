@@ -15,7 +15,7 @@
 	
 # change the language and date formatting to English if it is not already
 	Sys.setenv(LANG = "EN")
-	Sys.setlocale("LC_TIME", "English") # key, without this conversion to POSIXct does not work
+	Sys.setlocale("LC_TIME", "English") # key, without this date conversions might not work as desired
 	Sys.getlocale(category = "LC_ALL")
 
  # working directory
@@ -88,9 +88,7 @@
 		table(BU$assembly_abb,BU$house)
 	
 	# get the correct internal r-date format
-	#	BU$leg_period_start_posix <- as.Date(as.POSIXct(as.character(BU$leg_period_start),format=c("%d%b%Y")))
-		BU$leg_period_start_posix <- as.Date(fast_strptime(as.character(BU$leg_period_start),"%d%b%Y")) # this one works faster, with a better result rom the lubridate package
-		table(BU$leg_period_start_posix == BU$leg_period_start_posix2) # indeed, exactly the same, and much faster! - and actuall without this one day issue, so lets implement this everywhere
+		BU$leg_period_start_posix <- as.Date(fast_strptime(as.character(BU$leg_period_start),"%d%b%Y")) 
 
 	# now, get rid off all cases that do not meet the following criteria: a row exists in the data-frame where the day is the legistlative period its start date, if this is not the case you where not 'there on the first day'
 	
@@ -351,26 +349,43 @@
 					head(MEME)
 			
 			# !! please note!! for a final version a bit more data-cleaning e.t.c. should be done here to reduce missingness! -- currently only based on MEME.. is that the same for Oliver his 'party_id_national' variable?
-			TEMPB <- sqldf("
-						SELECT BU.*, MEME.party_id as 'party_at_start'
-						FROM BU LEFT JOIN MEME
-						ON 
-							BU.pers_id = MEME.pers_id
-							AND
-								(
-								BU.first_day_asdate >= MEME.memep_startdate_cleaned_dateformat
+			if(FALSE)
+			{
+				TEMPB <- sqldf("
+							SELECT BU.*, MEME.party_id as 'party_at_start'
+							FROM BU LEFT JOIN MEME
+							ON 
+								BU.pers_id = MEME.pers_id
+		  
+		 
+																	  
 								AND
-								BU.first_day_asdate <= MEME.memep_enddate_cleaned_dateformat
-								)
-						")
+									(
+									BU.first_day_asdate >= MEME.memep_startdate_cleaned_dateformat
+									AND
+									BU.first_day_asdate <= MEME.memep_enddate_cleaned_dateformat
+									)
+							")
+			}			
+									
+				TEMPB <- sqldf("
+							SELECT BU.*, FIRSTPARLDAY.party_id_national as 'party_at_start'
+							FROM BU LEFT JOIN FIRSTPARLDAY
+							ON 
+								BU.pers_id = FIRSTPARLDAY.pers_id
+								AND
+									(
+									BU.first_day_asdate = FIRSTPARLDAY.day
+									)
+							"
 			head(TEMPB)
 			tail(TEMPB)
 			table(TEMPB$party_at_start)
-			table(is.na(TEMPB$party_at_start)) # ! so ! note for later that there is a bit of missingness here that needs to be dealth with, ! (excluded these cases) below already for the normalisation accross countries! ## this needs to be brought up with Oliver and Elena!  -- for CH this includes regional variations as well!
+			table(is.na(TEMPB$party_at_start)) # ! so ! note for later that there is a bit of missingness here that needs to be dealth with, ! (excluded these cases) below already for the normalisation accross countries! ## this needs to be brought up with Oliver and Elena!  -- for CH this includes regional variations as well! : note that when oliver his party_id_national is used, that this does not also include regional variations!
 			
 			# and how does this lool like in Oliver' data?
 			head(TEMPB)
-			table(is.na(TEMPB$party_id_national)) # missing for almost the exact some cases it seems, let inspect some of these
+			table(is.na(TEMPB$party_id_national)) # missing for almost the exact same cases it seems, let inspect some of these
 			
 			head(TEMPB[is.na(TEMPB$party_at_start),])
 			tail(TEMPB[is.na(TEMPB$party_at_start),])
@@ -414,6 +429,8 @@
 			
 		# step 4: get the party ON THE DAY THAT SPECIFIES THE ROW in BU itself
 		
+		if(FALSE)
+		{
 			TEMPC <- sqldf("
 						SELECT BU.*, MEME.party_id as 'party_now'
 						FROM BU LEFT JOIN MEME
@@ -436,7 +453,12 @@
 			#rm(TEMPC)
 			table(is.na(BU$party_at_start))
 			table(is.na(BU$party_now)) # the missingness number is very simular here!
-			
+		}
+		
+			# OVERWRITTING this with Oliver his party_id
+			BU$party_now <- BU$party_id_national		
+			table(is.na(BU$party_now))
+		
 		# step 5: select the stable party members (i.e.: people that have the same party on this day as they had when they entered parliament)
 			#	STAPAME <- sqldf("SELECT BU.*
 			#				      FROM BU
@@ -449,8 +471,10 @@
 				head(STAPAME)
 				nrow(STAPAME)
 				
-			# I am going to only save what is needed here, and reset R.
-				
+			# I am going to only save what is needed here, and reset R. -- with all of new optimizations now this is not nessary anymore?!
+			
+			if(FALSE)
+			{
 				# so, we need to safe STAPAME, BU (and that's it?)
 					save(STAPAME, BU, file = "stuff.RData")
 					
@@ -470,6 +494,7 @@
 						
 						setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 						load("stuff.RData")			
+			}
 			
 			# there are probably double party memberships in here?!
 			
@@ -530,7 +555,25 @@
 			
 				# fixing the issue of double party membership days by just selecting the first party and seeing if that changed, if not it is fine for us to count this as 'has not changed'
 					nrow(STAPAME)
-					length(unique(STAPAME$pers_id_day))
+					length(unique(STAPAME$pers_id_day)) # also with Oliver his data, still not the same!
+					nrow(STAPAME) - length(unique(STAPAME$pers_id_day)) # about 13k cases
+					
+					# how many people?
+					unique(STAPAME[which(duplicated(STAPAME$pers_id_day)),]$pers_id)
+					STAPAME[which(STAPAME$pers_id == "DE_Abelein_Manfred_1930" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Fischer_Helene_1935" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Gansel_Norbert_1940" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Knake_Heidi_1943" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Michalk_Maria_1949" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Picard_Walter_1923" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Schmitt_Karl_1951" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Schwarz_Heinz_1928" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Steinbach_Erika_1943" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Wagner_Marita_1952" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_Wittmann_Fritz_1933" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "DE_deRidder_Daniela_1962" & duplicated(STAPAME$pers_id_day)),]
+					STAPAME[which(STAPAME$pers_id == "NL_deGaay_Bas_1937" & duplicated(STAPAME$pers_id_day)),]
+					
 					STAPAME <- STAPAME[!duplicated(STAPAME$pers_id_day), ]
 					nrow(STAPAME)
 					length(unique(STAPAME$pers_id_day)) # looking good
@@ -538,6 +581,7 @@
 		# and a check
 		
 			nrow(BU[which(BU$pers_id == "NL_Wilders_Geert_1963"),])
+			table(BU[which(BU$pers_id == "NL_Wilders_Geert_1963"),]$party_id_national) # this looks good
 			nrow(STAPAME[which(STAPAME$pers_id == "NL_Wilders_Geert_1963"),]) # should be less, and it is
 			nrow(STAPAME)
 		
@@ -757,9 +801,10 @@
 					
 						# and deal with censoring, incomplete dates and make internal R-date
 							RESEFAC$res_entry_end <- gsub("[[rcen]]","",RESEFAC$res_entry_end,fixed=TRUE)
-							RESEFAC$res_entry_start <- gsub("[[lcen]]","",RESEFAC$res_entry_start,fixed=TRUE)
-							RESEFAC$res_entry_start_dateformat <- as.Date(as.POSIXct(RESEFAC$res_entry_start,format=c("%d%b%Y"),tz="CET"))
-							RESEFAC$res_entry_end_dateformat <- as.Date(as.POSIXct(RESEFAC$res_entry_end,format=c("%d%b%Y"),tz="CET"))
+							RESEFAC$res_entry_start <- gsub("[[lcen]]","",RESEFAC$res_entry_start,fixed=TRUE)				
+							RESEFAC$res_entry_start_dateformat <- as.Date(fast_strptime(as.character(RESEFAC$res_entry_start),"%d%b%Y"))
+							RESEFAC$res_entry_end_dateformat <- as.Date(fast_strptime(as.character(RESEFAC$res_entry_end),"%d%b%Y"))
+						
 						
 							# later dealing with incomplete dates should be added here!
 							table(is.na(RESEFAC$res_entry_start_dateformat))
