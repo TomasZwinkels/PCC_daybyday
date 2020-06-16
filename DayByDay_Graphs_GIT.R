@@ -58,6 +58,9 @@
 		FILES <- FILES[order(FILES$rawdate, decreasing=TRUE),]
 		FILES<-FILES[!(FILES$rawdate=="character(0)"),] # Get rid of empty rows
 
+	 # only use rows that start with 'Day-By-Day_Paper_DFs' 
+		FILES <- FILES[which(grepl('Day-By-Day_Paper_DFs', FILES$file_names, fixed=TRUE)),]
+
 	# 4) Complete file to import with file path
 		# filetoimport <- as.character(FILES$file_names[1])
 		filetoimport <- paste("./dfs_for_release/", as.character(FILES$file_names[1]), sep = "")
@@ -255,7 +258,7 @@
 	
 		ggplot(NULL) +  geom_line(data=PARLDAILY_CHSR, aes(x=day, y=seats)) +
 		geom_vline(aes(xintercept=UNI_CHSR$election_date_asdate), linetype=4, colour="black") +
-		scale_x_date(name="Swiss Nationalrat Day by Day",breaks=xbreaks_CHSR,labels=xlabels_CHSR,limits=xrange) +
+		scale_x_date(name="Swiss Staenderat Day by Day",breaks=xbreaks_CHSR,labels=xlabels_CHSR,limits=xrange) +
 		theme(axis.text.x = element_text(angle = 45, hjust = 1))
 	
 		ggplot(NULL) +  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=seats)) +

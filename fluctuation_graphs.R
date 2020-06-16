@@ -47,6 +47,9 @@
 	# 3) Order the raw dates with the latest file on the top of the list
 		FILES <- FILES[order(FILES$rawdate, decreasing=TRUE),]
 		FILES<-FILES[!(FILES$rawdate=="character(0)"),] # Get rid of empty rows
+		
+		# only use rows that start with 'Day-By-Day_Paper_DFs' 
+		FILES <- FILES[which(grepl('Day-By-Day_Paper_DFs', FILES$file_names, fixed=TRUE)),]
 
 	# 4) Complete file to import with file path
 		# filetoimport <- as.character(FILES$file_names[1])
@@ -54,6 +57,7 @@
 
 	# 5) Load all 12 data frames
 		load(filetoimport)
+		head(INDIVIDUAL)
 
 	
 	# Load PARL
@@ -110,6 +114,8 @@
 	BURED$country <- substr(BURED$pers_id,0,2)
 	head(BURED)
 	rm(TEMP) ## %% ##
+	
+	
 	
 	# get the daytotals for 'core members'
 	#	DAYTOTALS <- as.data.frame(table(BURED$day,BURED$country)) ### THIS NEEDS TO CHANGE
@@ -223,7 +229,7 @@
 		# step 3: get the party ON THE FIRST DAY
 		
 			# for this we first need to read in MEME
-					MEME = read.csv("./source_csvs/MEME.csv", header = TRUE, sep = ";")
+				##	MEME = read.csv("./source_csvs/MEME.csv", header = TRUE, sep = ";")
 					head(MEME)
 		
 			# get the data that I need for this cleaned
@@ -377,7 +383,7 @@
 									(
 									BU.first_day_asdate = FIRSTPARLDAY.day
 									)
-							"
+							")
 			head(TEMPB)
 			tail(TEMPB)
 			table(TEMPB$party_at_start)
@@ -507,7 +513,7 @@
 				STAPAME <- as.data.frame(STAPAME)
 				head(STAPAME)
 						
-			if(false) # commenting this out so we are not wasting memory space on it.
+			if(FALSE) # commenting this out so we are not wasting memory space on it.
 			{
 				# investigating this issues
 					head(STAPAME)
@@ -578,6 +584,17 @@
 					nrow(STAPAME)
 					length(unique(STAPAME$pers_id_day)) # looking good
 					
+					# are these remaining cases already an issue in INDIVIDUAL?
+					
+						INDIVIDUAL <- data.table(INDIVIDUAL)
+						INDIVIDUAL$pers_id_day <- paste0(INDIVIDUAL$pers_id,INDIVIDUAL$day)
+						INDIVIDUAL <- as.data.frame(INDIVIDUAL)
+						head(INDIVIDUAL)
+						
+						unique(INDIVIDUAL[which(duplicated(INDIVIDUAL$pers_id_day)),]$pers_id)
+
+						
+					
 		# and a check
 		
 			nrow(BU[which(BU$pers_id == "NL_Wilders_Geert_1963"),])
@@ -630,6 +647,10 @@
 			gc()
 			head(MPDAYLONGMISSINGCASES)
 			nrow(MPDAYLONGMISSINGCASES)
+			
+			
+			head(MPDAYLONGMISSINGCASES[which(MPDAYLONGMISSINGCASES$country == "CH"),]) # no missing cases in CH currently
+			
 			gc()
 			
 			BU <- data.table(BU)
@@ -643,9 +664,6 @@
 			nrow(BURED2) # indeed some reduction
 			rm(MPDAYLONGMISSINGCASES)
 			gc()
-			
-			# issue with Staenderat cases still left in here? 
-			table(BURED2$parliament_id) # nope, does not seem to be the problem
 			
 			# create new totals
 				# EVERYBODYCOUNTSRED <- as.data.frame(table(BURED2$day,BURED2$country))
@@ -688,6 +706,8 @@
 				hist(TEMPD$percentagestayingpartymembers)
 				TEMPD[which(TEMPD$percentagestayingpartymembers > 200),]
 			
+			
+			
 			# reduce to drop very recent and very old observations
 				TEMPE <- TEMPD[which(TEMPD$date < as.Date("2017-12-31") & TEMPD$date > as.Date("1950-01-01")),]
 				rm(TEMPD)
@@ -699,35 +719,34 @@
 			ggplot(TEMPE, aes(date, percentagestayingpartymembers, linetype = house)) + 
 			   geom_line(size=1.03)+
 			   facet_grid(country ~ .) +
-			   facet_grid(country ~ .) +
 			   ylab("%  MPs in same party as when they entered") +
 			   ylim(c(60,100)) +
 			   theme_pubr(base_size = 18,
 					base_family = "",
 					border = FALSE,
 					margin = TRUE,
-					legend = c(0.075,0.8),
+					legend = c(0.1,0.8),
 					x.text.angle = 0) +
 					grids(linetype = "dashed",axis="y")
-			   
-			   
-			   coord_trans(y="log2")
-			   
-			 	ggplot(TEMP3, aes(date, percentagecoremembers, linetype= house)) + 
-       geom_line(size=1.03)+
-	   facet_grid(country ~ .) +
-	   ylab("%  MPs also there at the first day of parliament") +
-	   theme_pubr(base_size = 18,
-					base_family = "",
-					border = FALSE,
-					margin = TRUE,
-					legend = c(0.895,0.8),
-					x.text.angle = 0) +
-		grids(linetype = "dashed",axis="y")
 				
 	#########################################
 	### party group / faction membership
 	#########################################
+	
+	###############
+	
+	# check what is in the memory space at this point and drop everything that is not needed below anymore!
+	
+		objectstokeep <- c("TEMPA","TEMPE")
+		objectstoremove <- objects()
+		objectstoremove <- objectstoremove[which(!objectstoremove %in% objectstokeep)]
+		rm(list=objectstoremove)
+		gc()
+		objects()
+	
+	###############
+	
+	
 	
 		# we already have a data-frame with the first day of the parliament
 			head(TEMPA)
@@ -831,7 +850,7 @@
 							typeof(RESEFAC$pers_id)
 					
 				###
-				## get the faction at the start
+				## get the party-group at the start
 				###
 				
 					PGST <- sqldf("
@@ -858,7 +877,7 @@
 				#	RESEFAC[which(RESEFAC$pers_id == "CH_Abate_Fabio_1966" & as.Date("2000-09-25") >= RESEFAC$res_entry_start_dateformat & as.Date("2000-09-25") <= RESEFAC$res_entry_end_dateformat),]
 				
 				###
-				## get the faction now
+				## get the party-group / faction now
 				###
 				
 					PGST <- sqldf("
@@ -881,13 +900,14 @@
 					# fixing the issue of double party membership days
 					
 						# inspect
-						#	PGST$pers_id_day <- paste(PGST$pers_id,PGST$day,sep="_")
-							PGST$pers_id_day <- stri_join(PGST$pers_id,PGST$day,sep="_")
+							PGST <- data.table(PGST)
+							PGST$pers_id_day <- paste0(PGST$pers_id,PGST$day)
+							PGST <- as.data.frame(PGST)
+
 							gc()
 							nrow(PGST)
 							length(unique(PGST$pers_id_day)) # couple of cases
-					
-						# fix
+							# fix
 							PGST <- PGST[!duplicated(PGST$pers_id_day), ]
 							nrow(PGST)
 							
@@ -898,13 +918,15 @@
 				
 				#################
 				## step 6. tabulate the whole thing to get numbers per day for the stable faction members as well as for a (reduced because of missing faction membership information!) sample of all of the members
-				#################
+				#################	
 				
-					# get the counts tabulated (per day and country) for the stables members
+					# get the counts tabulated (per day and country) for the stable members
 					STAFAME$country <- substr(STAFAME$pers_id,0,2)
-					FAMETAB <- as.data.frame(table(STAFAME$day,STAFAME$country))
+				#	FAMETAB <- as.data.frame(table(STAFAME$day,STAFAME$country))
+					FAMETAB <- data.table(as.data.frame(STAFAME %>% count(day, country, house)))
+					
 					gc()
-					colnames(FAMETAB) <- c("date","country","numberofpartygroupstablemps")
+					colnames(FAMETAB) <- c("date","country","house","numberofpartygroupstablemps")
 					FAMETAB$date <- as.Date(FAMETAB$date)
 					head(FAMETAB)
 					tail(FAMETAB)
@@ -917,15 +939,22 @@
 				
 							# get a data-frame with only those cases for which we do NOT have this info
 							MPDAYLONGMISSINGFAMECASES <- PGST[which(is.na(PGST$faction_at_start) | is.na(PGST$faction_now)),]
-							MPDAYLONGMISSINGFAMECASES$persidandday <- stri_join(MPDAYLONGMISSINGFAMECASES$pers_id,as.character(MPDAYLONGMISSINGFAMECASES$day),sep="")
+							MPDAYLONGMISSINGFAMECASES <- data.table(MPDAYLONGMISSINGFAMECASES)
+							MPDAYLONGMISSINGFAMECASES$persidandday <- paste0(MPDAYLONGMISSINGFAMECASES$pers_id,as.character(MPDAYLONGMISSINGFAMECASES$day))
+							MPDAYLONGMISSINGFAMECASES <- as.data.frame(MPDAYLONGMISSINGFAMECASES)
 							gc()
 							head(MPDAYLONGMISSINGFAMECASES)
-							nrow(MPDAYLONGMISSINGFAMECASES)
+							nrow(MPDAYLONGMISSINGFAMECASES) # about 3.6 million! -- al the Dutch cases? -- indeed, although also 3557 in Germany
+							table(MPDAYLONGMISSINGFAMECASES$country)
+							
+							table(MPDAYLONGMISSINGFAMECASES[which(MPDAYLONGMISSINGFAMECASES$country == "DE"),]$pers_id)
 							
 							# now get rid of these cases
 								
 								# we first need to be able to match them
-									PGST$persidandday <- stri_join(PGST$pers_id,as.character(PGST$day),sep="")
+									PGST <- data.table(PGST)
+									PGST$persidandday <- paste0(PGST$pers_id,as.character(PGST$day),sep="")
+									PGST <- data.table(PGST)
 									gc()
 									head(PGST)
 							
@@ -937,9 +966,12 @@
 						## then we can calculate the counts
 							PGSTRED$country <- substr(PGSTRED$pers_id,0,2)
 							table(PGSTRED$country)
-							FAMETABALL <- as.data.frame(table(PGSTRED$day,PGSTRED$country))
+							PGSTRED <- data.table(PGSTRED)
+							# FAMETABALL <- as.data.frame(table(PGSTRED$day,PGSTRED$country))
+							FAMETABALL <- data.table(as.data.frame(PGSTRED %>% count(day, country, house)))
+							
 							gc()
-							colnames(FAMETABALL) <- c("date","country","totalnumberofmps")
+							colnames(FAMETABALL) <- c("date","country","house","totalnumberofmps")
 							FAMETABALL$date <- as.Date(FAMETABALL$date)
 							head(FAMETABALL)
 							tail(FAMETABALL)
@@ -965,6 +997,8 @@
 							FAMETAB.date = FAMETABALL.date 
 							AND
 							FAMETAB.country = FAMETABALL.country
+							AND
+							FAMETAB.house = FAMETABALL.house
 							)
 						")
 		
@@ -993,11 +1027,25 @@
 							nrow(TEMPENL)
 							head(TEMPENL)
 							
+							colnames(TEMPENL) <- colnames(FAMECOUNTSREC)
 							FAMECOUNTSRECWITHNL <- rbind(FAMECOUNTSREC,TEMPENL)
 							
-						ggplot(FAMECOUNTSREC, aes(date, percentagestayingpartygroupmembers, color = country)) + 
+						ggplot(FAMECOUNTSRECWITHNL, aes(date, percentagestayingpartygroupmembers, color = country)) + 
 						   geom_line()+
 						   facet_grid(country ~ .) +
 						   ylab("%  MPs in same party group as when they entered") +
 						   theme_pubclean(base_size = 20) 
+						   
+						ggplot(FAMECOUNTSRECWITHNL, aes(date, percentagestayingpartygroupmembers, linetype = house)) + 
+						   geom_line(size=1.03)+
+						   facet_grid(country ~ .) +
+						   ylab("%  MPs in same party group as when they entered") +
+						   ylim(c(60,100)) +
+						   theme_pubr(base_size = 18,
+								base_family = "",
+								border = FALSE,
+								margin = TRUE,
+								legend = c(0.1,0.8),
+								x.text.angle = 0) +
+								grids(linetype = "dashed",axis="y")
 				
