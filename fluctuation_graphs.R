@@ -211,7 +211,7 @@
 			head(FIRSTPARLDAY)
 			nrow(FIRSTPARLDAY)
 		
-		# step 2: merge this into BU
+		# step 2: merge this into BUf
 			
 			TEMPA <- sqldf("SELECT BU.*, FIRSTPARLDAY.first_day_asdate
 						   FROM BU LEFT JOIN FIRSTPARLDAY

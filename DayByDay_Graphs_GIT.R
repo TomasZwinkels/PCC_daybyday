@@ -141,6 +141,7 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 		IPU_CH <- IPU_M[which(IPU_M$country == "CHE"),]
 		IPU_DE <- IPU_M[which(IPU_M$country == "DEU"),]
 		IPU_NL <- IPU_M[which(IPU_M$country == "NLD"),]
+		head(IPU_NL)
 
 ##########
 # Graphs #
@@ -208,7 +209,6 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 	PARLDAILY_NL[which(PARLDAILY_NL$day == as.Date("2017-03-15",origin="1970-01-01")),]$gender * 150 # occurding to our data there where 58.
 	
 	
-	
 	## #discuss with Oliver: any idea why the time-ranges might differ between countries. Shall we make this consistent (for the comparability of the graphs) ##
 
 ## so Elena did not yet implement to script to get the proper vertical lines
@@ -227,6 +227,13 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 		
 		UNI_NL <- as.data.frame(unique(PARLDAILY_NL$election_date_asdate))
 		colnames(UNI_NL) <- "election_date_asdate"	
+		
+		
+		# a temporary fix
+		AA <- as.data.frame(as.Date("2017-03-15",origin="1970-01-01"))
+		colnames(AA) <- "election_date_asdate"	
+		UNI_NL <- rbind(UNI_NL,AA)
+	
 	
 	# these are the 'matching vectors' from the IPU data
 		min(which(names(IPU) == "X1960"))
@@ -237,7 +244,7 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 	yname <- c("% Women")
 	ybreaks <- c(0,0.1,0.2,0.3,0.4,0.5)
 	ylabels <- c(0,10,20,30,40,50)
-	yrange <- c(0,0.5)
+	yrange <- c(0.05,0.43)
 		
 	xrange <- c(as.Date("1955-01-01",origin="1970-01-01"),as.Date("2019-12-31",origin="1970-01-01"))
 	
@@ -288,25 +295,24 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 		  ggtitle("% of women in CH Staenderat")
 	
 	
-	#CH
+	#CH NR and SR together
 	# genderdaily_CH <-
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=gender),size=1.01) +
 		  geom_line(data=PARLDAILY_CHSR, aes(x=day, y=gender),size=1.01,linetype="dashed") +
-		  geom_point(data=IPU_CH, aes(x=rformateddate, y=propwomen),shape=17,size=5) +
+		  geom_point(data=IPU_CH, aes(x=rformateddate, y=propwomen),shape=7,size=4.5,color="black") +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Swiss Parliament Day by Day",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_CHNR$election_date_asdate), linetype=4, colour="black",size=0.5)+
 		  theme_grey(base_size = 15) +
-		  theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
-		  theme_pubclean(base_size = 20) 
-		  
+		  theme_pubclean(base_size = 20) +
+		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 
 	#DE
 	#genderdaily_DE <- 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender),size=1.01) +
-		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),shape=17,size=5) +
+		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),shape=7,size=4.5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="German Bundestag Day by Day",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black",size=1) +
@@ -318,7 +324,7 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 	# genderdaily_NL 
 		ggplot(NULL) +
 		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender),size=1.01) +
-		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=17,size=5) +
+		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=7,size=4.5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black",size=1) +
