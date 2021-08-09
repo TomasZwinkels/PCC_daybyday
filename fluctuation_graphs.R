@@ -172,8 +172,8 @@
 		TEMP3 <- TEMP2[which(TEMP2$date < as.Date("2017-12-31")),] # this takes care of some of the issues that where identified above with [[rcen]] RESE dates on parliamentary membership
 		nrow(TEMP3)
 		head(TEMP3)
-		
-	ggplot(TEMP3, aes(date, percentagecoremembers, linetype= house)) + 
+	
+	outpimage <- ggplot(TEMP3, aes(date, percentagecoremembers, linetype= house)) + 
        geom_line(size=1.03)+
 	   facet_grid(country ~ .) +
 	   ylab("%  MPs also there at the first day of parliament") +
@@ -184,6 +184,14 @@
 					legend = c(0.895,0.8),
 					x.text.angle = 0) +
 		grids(linetype = "dashed",axis="y")
+		
+	outpimage
+	
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+	png("Figure_1_parliament_stability.png", units="px", width=7106, height=4200, res=600)
+	outpimage
+	dev.off()
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 
 	#########################################
 	### party membership
