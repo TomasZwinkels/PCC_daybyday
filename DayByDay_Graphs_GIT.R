@@ -297,7 +297,7 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 	
 	#CH NR and SR together
 	# genderdaily_CH <-
-		ggplot(NULL) +
+	genderCHimage <- ggplot(NULL) +
 		  geom_line(data=PARLDAILY_CHNR, aes(x=day, y=gender),size=1.01) +
 		  geom_line(data=PARLDAILY_CHSR, aes(x=day, y=gender),size=1.01,linetype="dashed") +
 		  geom_point(data=IPU_CH, aes(x=rformateddate, y=propwomen),shape=7,size=4.5,color="black") +
@@ -308,9 +308,18 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 		  theme_pubclean(base_size = 20) +
 		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 
+
+	genderCHimage
+
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+	png("Figure_5a_CH_genderv2.png", units="px", width=8912, height=3913, res=600)
+	genderCHimage
+	dev.off()
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+
 	#DE
 	#genderdaily_DE <- 
-		ggplot(NULL) +
+	genderDEimage <- ggplot(NULL) +
 		  geom_line(data=PARLDAILY_DE, aes(x=day, y=gender),size=1.01) +
 		  geom_point(data=IPU_DE, aes(x=rformateddate, y=propwomen),shape=7,size=4.5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
@@ -319,10 +328,18 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 		  theme_grey(base_size = 15) +
 		  theme_pubclean(base_size = 20) +
 		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
-	  
+	 
+	genderDEimage
+	
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+	png("Figure_5b_DE_genderv2.png", units="px", width=8912, height=3913, res=600)
+	genderDEimage
+	dev.off()
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+	 
 	#NL
 	# genderdaily_NL 
-		ggplot(NULL) +
+	genderNLimage <- ggplot(NULL) +
 		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender),size=1.01) +
 		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=7,size=4.5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
@@ -331,7 +348,20 @@ G:\Politikwissenschaft\Team-Bailer\PCC##########################################
 		  theme_grey(base_size = 15) +
 		  theme_pubclean(base_size = 20) +
 		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
-
+	
+	genderNLimage
+	
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+	png("Figure_5c_NL_genderv2.png", units="px", width=8912, height=3913, res=600)
+	genderNLimage
+	dev.off()
+	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+	
+	
+	
+	
+	
+	
 #put all together and save
 
 	#ggarrange(genderdaily_DE, genderdaily_NL, genderdaily_CH, ncol=1, nrow = 3, common.legend = TRUE, legend="right")
@@ -1309,7 +1339,7 @@ dev.off()
 					UNI_CHSR$assembly_abb <- "SR"
 					UNI_CH <- rbind(UNI_CHNR,UNI_CHSR)
 				
-					ggplot(NULL) +
+					tenureCHimage <- ggplot(NULL) +
 					  geom_line(data=PARLDAILY_CH, aes(x=day, y=tenure,linetype="all daily"),size=0.6)  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure),size=1.1) +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,linetype="established parties"),size=1.1)  +
@@ -1322,8 +1352,16 @@ dev.off()
 					  labs(linetype="among..") +
 					  theme_pubclean(base_size = 20) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-					  
-					  
+			
+	# export
+			
+			tenureCHimage
+
+			setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+			png("Figure_6a_CH_tenure.png", units="px", width=6738, height=2875, res=600)
+			tenureCHimage
+			dev.off()
+			setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 					  
 					  # so, just some inspection
 						# what where in 1995 and 1999 in Switserland the none-established parties?
@@ -1339,7 +1377,7 @@ dev.off()
 						
 					  
 				# DE # for Germany the line match with PARLDAILY is bang on!
-					ggplot(NULL) +
+				tenureDEimage <- ggplot(NULL) +
 					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,linetype="all daily"),size=0.6)  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure),size=1.1)  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,linetype="established parties"),size=1.1)  +
@@ -1352,8 +1390,16 @@ dev.off()
 					  theme_pubclean(base_size = 20) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 					  
+			tenureDEimage
+
+			setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+			png("Figure_6b_DE_tenure.png", units="px", width=6738, height=2875, res=600)
+			tenureDEimage
+			dev.off()
+			setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+					  
 				# NL
-					ggplot(NULL) +
+				tenureNLimage <- ggplot(NULL) +
 					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,linetype="all daily"),size=0.6)  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure),size=1.1)  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,linetype="established parties"),size=1.1)  +
@@ -1365,7 +1411,14 @@ dev.off()
 					  labs(linetype="among..") +
 					  theme_pubclean(base_size = 20) +
 					  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-					  
+			
+			tenureNLimage
+
+			setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs/r_scripts/graphs_for_paper")
+			png("Figure_6c_NL_tenure.png", units="px", width=6738, height=2875, res=600)
+			tenureNLimage
+			dev.off()
+			setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")			
 				
 		# for Germany (just for Germany for now) lets also try a disaggregation to the party level?
 				 
