@@ -1,4 +1,4 @@
-G:\Politikwissenschaft\Team-Bailer\PCC###############################################
+###############################################
 ## Parliaments Day by Day: Graphs for Paper ##
 ###############################################
 
@@ -1340,10 +1340,11 @@ dev.off()
 					UNI_CH <- rbind(UNI_CHNR,UNI_CHSR)
 				
 					tenureCHimage <- ggplot(NULL) +
-					  geom_line(data=PARLDAILY_CH, aes(x=day, y=tenure,linetype="all daily"),size=0.6)  +
-					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure),size=1.1) +
+					  geom_line(data=PARLDAILY_CH, aes(x=day, y=tenure,linetype="all (daily)"),size=0.6)  +
+					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure,linetype="all"),size=1.1) +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_est,linetype="established parties"),size=1.1)  +
 					  geom_line(data=GGDAT_CH, aes(x=day, y=averagetenure_nest,linetype="not established parties"),size=1.1) +
+					  scale_linetype_manual(values=c("solid", "solid","dashed","dotted")) +
 					  facet_grid(assembly_abb ~ .) +
 					  scale_y_continuous(name="Average years tenure at start of term",limits=yrangehere) +
 					  scale_x_date(name="Time / Swiss Parliament)",breaks=xbreaks_CHNR,labels=xlabels_CHNR,limits=xrange) +
@@ -1379,9 +1380,10 @@ dev.off()
 				# DE # for Germany the line match with PARLDAILY is bang on!
 				tenureDEimage <- ggplot(NULL) +
 					  geom_line(data=PARLDAILY_DE, aes(x=day, y=tenure,linetype="all daily"),size=0.6)  +
-					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure),size=1.1)  +
+					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure,linetype="all"),size=1.1,color="darkgray")  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_est,linetype="established parties"),size=1.1)  +
 					  geom_line(data=GGDAT_DE, aes(x=day, y=averagetenure_nest,linetype="not established parties"),size=1.1) +
+					  scale_linetype_manual(values=c("solid", "solid","dashed","dotted")) +
 					  scale_y_continuous(name="Average years tenure at start of term",limits=yrangehere) +
 					  scale_x_date(name="German Bundestag at first day in session",breaks=xbreaks_DE,labels=xlabels_DE,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_DE$election_date_asdate), linetype=4, colour="black") +
@@ -1400,10 +1402,11 @@ dev.off()
 					  
 				# NL
 				tenureNLimage <- ggplot(NULL) +
-					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,linetype="all daily"),size=0.6)  +
-					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure),size=1.1)  +
+					  geom_line(data=PARLDAILY_NL, aes(x=day, y=tenure,linetype="all (daily)"),size=0.6)  +
+					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure,linetype="all"),size=1.1)  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_est,linetype="established parties"),size=1.1)  +
 					  geom_line(data=GGDAT_NL, aes(x=day, y=averagetenure_nest,linetype="not established parties"),size=1.1) +
+					  scale_linetype_manual(values=c("solid", "solid","dashed","dotted")) +
 					  scale_y_continuous(name="Average years tenure at start of term",limits=yrangehere) +
 					  scale_x_date(name="Dutch Tweede-Kamer at first day in session",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
 					  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black") +
