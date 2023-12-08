@@ -24,9 +24,20 @@
 	#setwd("C:/Users/huwylero/Basel Powi Dropbox/Data_Paper_DFs")
 	#setwd("E:/Basel Powi Dropbox/Data_Paper_DFs")
 	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
+	setwd("C:/Users/zwinkels/Dropbox/Basel archive/Data_Paper_DFs")
 	
 #	detach("package:googleVis", unload=TRUE)
 #	install.packages("googleVis")
+#	install.packages("ggplot2")
+#	install.packages("doParallel")
+#	install.packages("stringr")
+#	install.packages("gridExtra")
+#	install.packages("ggpubr")
+#	install.packages("reshape2")
+#	install.packages("sqldf")
+#	install.packages("plotly")
+#	install.packages("grDevices")
+#	install.packages("lubridate")
 
 # load libraries
 	library(ggplot2)
@@ -337,17 +348,124 @@
 	dev.off()
 	setwd("C:/Users/turnerzw/Basel Powi Dropbox/Data_Paper_DFs")
 	 
+	# adding the 'counter factual line' here
+	head(UNI_NL)
+	
+	UNI_NL$before = UNI_NL$election_date_asdate - days(30) # 1 month before
+	UNI_NL$after = UNI_NL$election_date_asdate + days(30) # 1 month after
+	
+	# let's set some wider windows for years where the parliament was installed particualr late
+	
+	UNI_NL$after[which(UNI_NL$election_date_asdate == "1959-03-12")] <- UNI_NL$election_date_asdate[which(UNI_NL$election_date_asdate == "1959-03-12")] + days(90)
+	UNI_NL$after[which(UNI_NL$election_date_asdate == "1972-11-29")] <- UNI_NL$election_date_asdate[which(UNI_NL$election_date_asdate == "1972-11-29")] + days(190)
+	UNI_NL$after[which(UNI_NL$election_date_asdate == "1977-05-25")] <- UNI_NL$election_date_asdate[which(UNI_NL$election_date_asdate == "1977-05-25")] + days(120)
+	UNI_NL$after[which(UNI_NL$election_date_asdate == "1989-09-06")] <- UNI_NL$election_date_asdate[which(UNI_NL$election_date_asdate == "1989-09-06")] + days(100)
+
+	# let's take the first data-point as the starting percentage
+	
+	 
+	# now, how to get the 'jumps' on certain date? - we set a range around the election date and do a before after?
+	
+		# let start with get the percentage on the election day itself
+		UNI_NL <- sqldf("SELECT UNI_NL.*, PARLDAILY_NL.gender as gender_onelectionday
+						FROM UNI_NL LEFT JOIN PARLDAILY_NL 
+						ON UNI_NL.election_date_asdate = PARLDAILY_NL.day
+						")
+
+				  
+		UNI_NL <- sqldf("SELECT UNI_NL.*, PARLDAILY_NL.gender as 'gender_before'
+					FROM UNI_NL LEFT JOIN PARLDAILY_NL
+					ON UNI_NL.before = PARLDAILY_NL.day
+				  ")
+				  
+		UNI_NL <- sqldf("SELECT UNI_NL.*, PARLDAILY_NL.gender as 'gender_after'
+					FROM UNI_NL LEFT JOIN PARLDAILY_NL
+					ON UNI_NL.after = PARLDAILY_NL.day
+				  ")
+		
+		UNI_NL$jump_size = UNI_NL$gender_after - UNI_NL$gender_before
+	
+		UNI_NL
+		
+		# lets start with the 1956 election, nice 10% percentage
+		UNI_NL <- UNI_NL[which(UNI_NL$election_date_asdate > as.Date("1955-01-01",origin="1970-01-01")),]
+		UNI_NL
+		
+		head(UNI_NL)
+		startpercentage <- UNI_NL$gender_onelectionday[1]
+		
+		# get the running total!
+		resvec = vector()
+		resvec[1] = startpercentage
+		for(i in 1:length(UNI_NL$jump_size))
+		{
+			resvec[1+i] = resvec[i] + UNI_NL$jump_size[i+1]
+		}
+		resvec
+		
+		UNI_NL$running_average_with_atelection_fluctu_only <- resvec[-20]
+		UNI_NL$running_average_with_atelection_fluctu_only
+		
+		# and the last value should just be the value at 2012, for the block graph! 
+		UNI_NL$running_average_with_atelection_fluctu_only[19] <- UNI_NL$running_average_with_atelection_fluctu_only[18]
+		
+		UNI_NL$running_average_with_atelection_fluctu_only
+		
+		sum(UNI_NL$jump_size,na.rm=TRUE)
+	
+		# getting how many women these jumps are
+		UNI_NL$womenextraandless <- round((UNI_NL$jump_size*150),0)
+		
+		UNI_NL$womenextraandless_formatted <- ifelse(UNI_NL$womenextraandless > 0, 
+                                             paste("+", UNI_NL$womenextraandless, sep=""), 
+                                             as.character(UNI_NL$womenextraandless))
+
+	
 	#NL
 	# genderdaily_NL 
-	genderNLimage <- ggplot(NULL) +
-		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender),size=1.01) +
-		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=7,size=4.5) +
+	
+	
+	#genderNLimage <- 
+		  ggplot(NULL) +
+		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender),size=0.75,color="black") +
+		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=7,size=2.5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
 		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
-		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black",size=1) +
+		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black",size=0.5) +
+		  
+		  geom_point(data=UNI_NL, aes(x=before, y=gender_before),shape=15,size=3,colour="darkgreen") +
+		  geom_point(data=UNI_NL, aes(x=after, y=gender_after),shape=16,size=3,colour="darkgreen") +
+		  
+		  geom_step(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only),size=1.2,color="darkgreen",linetype="twodash") +
+		  geom_text(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only, label=womenextraandless_formatted), vjust=0, hjust=1, angle=45, size=6, color="black",fill="gray") +
+	#	  geom_vline(aes(xintercept=UNI_NL$before), linetype=5, colour="red",size=1) +
+	#	  geom_vline(aes(xintercept=UNI_NL$after), linetype=5, colour="red",size=1) +
 		  theme_grey(base_size = 15) +
 		  theme_pubclean(base_size = 20) +
-		  theme(axis.text.x = element_text(angle = 65, hjust = 1))
+		  theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+		  scale_color_manual(scale_color_manual(values = c("day-by-day" = "black", "Cummulative gender trend with election fluctuations only" = "purple")),name="Trends")
+	
+	genderNLimage <- 
+	  ggplot(NULL) +
+	  # Map the color aesthetic to a new variable for geom_line
+	  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender, color="Black Line"), size=1.01) +
+	  # Map the color aesthetic to a new variable for geom_step
+	  geom_step(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only, color="Purple Step"), size=1.01) +
+	  scale_y_continuous(name=yname, breaks=ybreaks, labels=ylabels, limits=yrange) +
+	  scale_x_date(name="Dutch Tweede Kamer Day by Day", breaks=xbreaks_NL, labels=xlabels_NL, limits=xrange) +
+	  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black", size=1) +
+	  # Other layers...
+
+	  # Define manual color scale for the lines
+	  scale_color_manual(values = c("Black Line" = "black", "Purple Step" = "purple"), 
+						 name = "Line Type", 
+						 labels = c("Black Line", "Purple Step")) +
+	  # Rest of your code
+	  theme_grey(base_size = 15) +
+	  theme_pubclean(base_size = 20) +
+	  theme(axis.text.x = element_text(angle = 65, hjust = 1))
+
+	
 	
 	genderNLimage
 	
