@@ -51,6 +51,7 @@
 	library(plotly)
 	library(grDevices)
 	library(lubridate)
+	library(dplyr)
 
 #############
 # Load data #
@@ -427,23 +428,56 @@
 	
 	#genderNLimage <- 
 		  ggplot(NULL) +
-		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender),size=0.75,color="black") +
-		  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=7,size=2.5) +
+		  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender),size=1,color="black") +
+	#	  geom_point(data=IPU_NL, aes(x=rformateddate, y=propwomen),shape=7,size=2.5) +
 		  scale_y_continuous(name=yname,breaks=ybreaks,labels=ylabels,limits=yrange) +
-		  scale_x_date(name="Dutch Tweede Kamer Day by Day",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
-		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=4, colour="black",size=0.5) +
+		  scale_x_date(name="Time & Dutch Election Cycles",breaks=xbreaks_NL,labels=xlabels_NL,limits=xrange) +
+		  geom_vline(aes(xintercept=UNI_NL$election_date_asdate), linetype=1, colour="gray",size=1) +
 		  
-		  geom_point(data=UNI_NL, aes(x=before, y=gender_before),shape=15,size=3,colour="darkgreen") +
-		  geom_point(data=UNI_NL, aes(x=after, y=gender_after),shape=16,size=3,colour="darkgreen") +
+	#	  geom_point(data=UNI_NL, aes(x=before, y=gender_before),shape=15,size=3,colour="darkgreen") +
+	#	  geom_point(data=UNI_NL, aes(x=after, y=gender_after),shape=16,size=3,colour="darkgreen") +
 		  
-		  geom_step(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only),size=1.2,color="darkgreen",linetype="twodash") +
-		  geom_text(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only, label=womenextraandless_formatted), vjust=0, hjust=1, angle=45, size=6, color="black",fill="gray") +
+		  geom_step(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only),size=1.2,color="darkgreen",linetype=1) +
+	#	  geom_text(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only, label=womenextraandless_formatted), vjust=0, hjust=1, angle=45, size=6, color="black",fill="gray") +
 	#	  geom_vline(aes(xintercept=UNI_NL$before), linetype=5, colour="red",size=1) +
 	#	  geom_vline(aes(xintercept=UNI_NL$after), linetype=5, colour="red",size=1) +
 		  theme_grey(base_size = 15) +
 		  theme_pubclean(base_size = 20) +
 		  theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
 		  scale_color_manual(scale_color_manual(values = c("day-by-day" = "black", "Cummulative gender trend with election fluctuations only" = "purple")),name="Trends")
+	
+	## version of this graph Jan Jaap suggested
+	
+		# made with the help of chatGPT: https://chat.openai.com/c/31659536-4c77-4221-8587-0279acab2862
+	
+		## this is the one!
+		ggplot(NULL) +
+			  # day-by-day area with legend
+			  geom_area(data=PARLDAILY_NL, aes(x=day, y=gender, fill="Actual trend (this proposal)"), alpha=0.9) +
+
+			  # day-by-day line without legend
+			  geom_line(data=PARLDAILY_NL, aes(x=day, y=gender), color="darkolivegreen", size=2, show.legend = FALSE) +
+
+			  # election fluctuations online area with legend
+			  geom_ribbon(data=UNI_NL_stepped, aes(x=election_date_asdate, ymax=running_average_with_atelection_fluctu_only, ymin=0, fill="Trend with at election fluctuations only (previous research)"), alpha=0.9) +
+
+			  # election fluctuations online step line without legend
+			  geom_step(data=UNI_NL, aes(x=election_date_asdate, y=running_average_with_atelection_fluctu_only), color="azure4", size=2, linetype=1, show.legend = FALSE) +
+
+			  # vertical lines for the Election
+			  geom_vline(data=UNI_NL, aes(xintercept=election_date_asdate), linetype=1, colour="gray", size=1, show.legend = FALSE) +
+
+			  # Add manual scales for fill
+			  scale_fill_manual(values=c("Actual trend (this proposal)"="darkgreen", "Trend with at election fluctuations only (previous research)"="gray")) +
+
+			  # set the desired x and y ranges
+			  scale_y_continuous(name="% women in the Tweede-Kamer", breaks=ybreaks, labels=ylabels, limits=c(0, 0.50)) +
+			  scale_x_date(name="Time & Dutch Election Cycles", breaks=xbreaks_NL, labels=xlabels_NL, limits=xrange) +
+
+			  # other graphics elements
+			  theme_grey(base_size = 15) +
+			  theme_pubclean(base_size = 20) +
+			  theme(axis.text.x = element_text(angle = 65, hjust = 1),legend.title = element_blank())
 	
 	genderNLimage <- 
 	  ggplot(NULL) +
